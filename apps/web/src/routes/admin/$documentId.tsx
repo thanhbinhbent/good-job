@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Download, Loader2 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { exportApi } from '@/lib/api'
-import { downloadPDF } from '@/components/export/DocumentPDF'
+import { downloadPDF } from '@/components/export/download-pdf'
 import type { ResumeContent, PortfolioContent, CoverLetterContent, Document } from '@binh-tran/shared'
 
 export const Route = createFileRoute('/admin/$documentId')({

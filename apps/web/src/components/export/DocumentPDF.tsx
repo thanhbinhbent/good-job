@@ -1,11 +1,10 @@
 import React from 'react'
-import { Document as PDFDocument, Page, View, Text, StyleSheet, pdf } from '@react-pdf/renderer'
+import { Document as PDFDocument, Page, View, Text, StyleSheet } from '@react-pdf/renderer'
 import type {
   ResumeContent,
   PortfolioContent,
   CoverLetterContent,
 } from '@binh-tran/shared'
-import type { Document as DocumentEntity } from '@binh-tran/shared'
 
 const styles = StyleSheet.create({
   page: { padding: 40, fontFamily: 'Helvetica', fontSize: 10, color: '#1e293b', lineHeight: 1.5 },
@@ -26,7 +25,7 @@ function stripHtml(html: string): string {
 
 // ── Resume PDF ────────────────────────────────────────────────────────────────
 
-function ResumePDF({ content }: { content: ResumeContent }) {
+export function ResumePDF({ content }: { content: ResumeContent }) {
   const p = content.personal
   const contactLine = [p.email, p.phone, p.location, p.website, p.linkedin && `linkedin.com/in/${p.linkedin}`, p.github && `github.com/${p.github}`].filter(Boolean).join('  ·  ')
 
@@ -105,7 +104,7 @@ function ResumePDF({ content }: { content: ResumeContent }) {
 
 // ── Portfolio PDF ─────────────────────────────────────────────────────────────
 
-function PortfolioPDF({ content }: { content: PortfolioContent }) {
+export function PortfolioPDF({ content }: { content: PortfolioContent }) {
   return (
     <PDFDocument>
       <Page size="A4" style={styles.page}>
@@ -153,7 +152,7 @@ function PortfolioPDF({ content }: { content: PortfolioContent }) {
 
 // ── Cover Letter PDF ──────────────────────────────────────────────────────────
 
-function CoverLetterPDF({ title, content }: { title: string; content: CoverLetterContent }) {
+export function CoverLetterPDF({ title, content }: { title: string; content: CoverLetterContent }) {
   const h = content.header
   return (
     <PDFDocument>
@@ -180,25 +179,4 @@ function CoverLetterPDF({ title, content }: { title: string; content: CoverLette
   )
 }
 
-// ── Download helper ───────────────────────────────────────────────────────────
 
-export async function downloadPDF(doc: DocumentEntity): Promise<void> {
-  let pdfDoc: React.ReactElement
-
-  if (doc.type === 'resume') {
-    pdfDoc = <ResumePDF content={doc.content as ResumeContent} />
-  } else if (doc.type === 'portfolio') {
-    pdfDoc = <PortfolioPDF content={doc.content as PortfolioContent} />
-  } else {
-    pdfDoc = <CoverLetterPDF title={doc.title} content={doc.content as CoverLetterContent} />
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const blob = await pdf(pdfDoc as any).toBlob()
-  const url = URL.createObjectURL(blob)
-  const a = window.document.createElement('a')
-  a.href = url
-  a.download = `${doc.title.replace(/\s+/g, '-').toLowerCase()}.pdf`
-  a.click()
-  URL.revokeObjectURL(url)
-}

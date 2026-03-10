@@ -82,6 +82,7 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Get('me')
   me(@Req() req: Request): { role: string } {
     const user = req.user as { role: string } | undefined;

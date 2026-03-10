@@ -59,10 +59,10 @@ function RootLayout() {
               </Button>
             </>
           ) : (
-            // Hide the login button entirely in bypass mode — auto-login handles it
-            !isBypassMode && (
+            // Show button only after URL is loaded and not in bypass mode
+            loginUrlSuccess && !isBypassMode && (
               <Button variant="ghost" size="sm" asChild>
-                <a href={loginUrlData?.url ?? '#'}>Admin Login</a>
+                <a href={loginUrlData!.url}>Admin Login</a>
               </Button>
             )
           )}
