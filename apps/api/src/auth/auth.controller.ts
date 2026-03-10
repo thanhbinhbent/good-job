@@ -40,19 +40,24 @@ export class AuthController {
     res.redirect(`${frontendUrl}/admin`);
   }
 
-  /**
-   * DEV ONLY — auto-login as admin without Google OAuth.
-   * Only available when ADMIN_BYPASS=true and NODE_ENV !== production.
-   */
   @Public()
   @Get('dev-login')
-  devLogin(@Res() res: Response): void {
+  devLogin(@Req() req: Request, @Res() res: Response): void {
     const isBypass =
       process.env.ADMIN_BYPASS === 'true' &&
       process.env.NODE_ENV !== 'production';
 
     if (!isBypass) {
-      res.status(403).json({ error: 'Dev login is disabled in production' });
+      res.status(403).json({ error: 'Dev login is disabled' });
+      return;
+    }
+
+    // Restrict to localhost — prevents exploitation if flags are misconfigured on a remote server
+    const ip = (req as Request & { ip?: string }).ip ?? req.socket?.remoteAddress ?? '';
+    const isLocal = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(ip);
+    if (!isLocal) {
+      this.logger.error(`dev-login blocked for remote IP ${ip}`);
+      res.status(403).json({ error: 'Dev login only accessible from localhost' });
       return;
     }
 
@@ -76,11 +81,19 @@ export class AuthController {
     const isBypass =
       process.env.ADMIN_BYPASS === 'true' &&
       process.env.NODE_ENV !== 'production';
-    const port = process.env.PORT ?? '3000';
-    const apiBase = `http://localhost:${port}/api/v1`;
-    return {
-      url: isBypass ? `${apiBase}/auth/dev-login` : `${apiBase}/auth/google`,
-    };
+
+    if (isBypass) {
+      const port = process.env.PORT ?? '3000';
+      return { url: `http://localhost:${port}/api/v1/auth/dev-login` };
+    }
+
+    // Derive API base from GOOGLE_CALLBACK_URL so it works in any environment
+    const callbackUrl = this.config.get<string>(
+      'GOOGLE_CALLBACK_URL',
+      'http://localhost:3000/api/v1/auth/google/callback',
+    );
+    const apiBase = callbackUrl.replace('/auth/google/callback', '');
+    return { url: `${apiBase}/auth/google` };
   }
 
   @UseGuards(AdminGuard)
@@ -91,6 +104,7 @@ export class AuthController {
     return { role: user.role };
   }
 
+  @Public()
   @Get('logout')
   logout(@Res() res: Response): void {
     res.clearCookie('access_token');

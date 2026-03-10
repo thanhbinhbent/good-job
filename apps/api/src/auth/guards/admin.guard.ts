@@ -12,8 +12,14 @@ import type { AdminPayload } from '../auth.service';
 
 /** When ADMIN_BYPASS=true (dev only), skip all JWT validation and inject a fake admin. */
 const isBypassEnabled = (): boolean =>
-  process.env.ADMIN_BYPASS === 'true' &&
-  process.env.NODE_ENV !== 'production';
+  process.env.ADMIN_BYPASS === 'true' && process.env.NODE_ENV !== 'production';
+
+/** Extra defense: bypass is only valid for requests originating from localhost. */
+function isLocalhostRequest(req: Request): boolean {
+  const ip =
+    (req as Request & { ip?: string }).ip ?? req.socket?.remoteAddress ?? '';
+  return ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(ip);
+}
 
 @Injectable()
 export class AdminGuard extends AuthGuard('jwt') implements CanActivate {
@@ -30,6 +36,11 @@ export class AdminGuard extends AuthGuard('jwt') implements CanActivate {
 
     if (isBypassEnabled()) {
       const req = context.switchToHttp().getRequest<Request>();
+      if (!isLocalhostRequest(req)) {
+        throw new UnauthorizedException(
+          'Bypass mode only accessible from localhost',
+        );
+      }
       const fakeAdmin: AdminPayload = { sub: 'admin', role: 'admin' };
       (req as Request & { user: AdminPayload }).user = fakeAdmin;
       return true;
