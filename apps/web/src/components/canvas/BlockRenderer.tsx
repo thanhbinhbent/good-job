@@ -67,9 +67,9 @@ function RichFormatBar({ editor, block, update, onMoveUp, onMoveDown, onDuplicat
 
   // Base classes for tiny controls — matches app's dark surface
   const ctrl = [
-    'h-5 text-[9px] bg-[hsl(var(--color-surface))] text-[hsl(var(--color-text))]',
-    'border border-[hsl(var(--color-border))] rounded px-1 cursor-pointer shrink-0',
-    'hover:border-[hsl(var(--color-primary-light))] focus:outline-none focus:border-[hsl(var(--color-primary))]',
+    'h-5 text-[9px] bg-slate-700/90 text-slate-100',
+    'border border-slate-500/60 rounded px-1 cursor-pointer shrink-0',
+    'hover:border-indigo-300/80 hover:bg-slate-600/95 focus:outline-none focus:border-indigo-400/90',
     'transition-colors',
   ].join(' ')
 
@@ -87,9 +87,9 @@ function RichFormatBar({ editor, block, update, onMoveUp, onMoveDown, onDuplicat
       onMouseDown={(e) => { prevent(e); onMD() }}
       className={[
         'flex items-center justify-center w-5 h-5 rounded transition-colors shrink-0',
-        active   ? 'bg-[hsl(var(--color-primary)/0.3)] text-[hsl(var(--color-primary-light))]' : '',
-        danger   ? 'text-[hsl(var(--color-danger))] hover:bg-[hsl(var(--color-danger)/0.15)]' : '',
-        !active && !danger ? 'text-[hsl(var(--color-muted))] hover:bg-white/8 hover:text-[hsl(var(--color-text))]' : '',
+        active   ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-300/60' : '',
+        danger   ? 'bg-red-900/25 text-red-300 border border-red-400/40 hover:bg-red-800/35' : '',
+        !active && !danger ? 'bg-slate-700/95 text-slate-200 border border-slate-500/45 hover:bg-slate-600/95 hover:text-white' : '',
       ].join(' ')}
     >
       {icon}
@@ -141,7 +141,7 @@ function RichFormatBar({ editor, block, update, onMoveUp, onMoveDown, onDuplicat
       <label className="cursor-pointer shrink-0" title="Text color" onMouseDown={prevent}>
         <input
           type="color" value={block.color.hex}
-          className="w-5 h-5 rounded cursor-pointer p-0 border border-[hsl(var(--color-border))]"
+          className="w-5 h-5 rounded cursor-pointer p-0 border border-slate-400/45 bg-slate-700"
           style={{ WebkitAppearance: 'none' } as React.CSSProperties}
           onChange={(e) => { update({ color: { ...block.color, hex: e.target.value } }); refocus() }}
         />
@@ -409,7 +409,7 @@ export function BlockRenderer({
             sectionId={sectionId} columnId={columnId}
             onMoveUp={handleMoveUp} onMoveDown={handleMoveDown}
             onDuplicate={handleDuplicate} onDelete={handleDelete}
-            onClose={() => { setEditingBlock(null); selectBlock(null, null, null) }}
+            onClose={() => { setEditingBlock(null) }}
           />
         )}
       </div>
