@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { authApi } from '@/lib/api'
 import { queryKeys } from '@/lib/query'
 import { useAuthStore } from '@/stores/auth.store'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -13,25 +13,32 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   const setAdmin = useAuthStore((s) => s.setAdmin)
+  const bypassFired = useRef(false)
 
   const { data: meData, isSuccess: meSuccess } = useQuery({
     queryKey: queryKeys.auth.me,
     queryFn: () => authApi.me(),
     retry: false,
     staleTime: Infinity,
+    refetchOnWindowFocus: false,
   })
 
   const { data: loginUrlData, isSuccess: loginUrlSuccess } = useQuery({
     queryKey: queryKeys.auth.loginUrl,
     queryFn: () => authApi.loginUrl(),
     staleTime: Infinity,
+    refetchOnWindowFocus: false,
   })
 
-  // When ADMIN_BYPASS=true: auto-authenticate without any user interaction
+  // When ADMIN_BYPASS=true: auto-authenticate without any user interaction.
+  // Guard with a ref so this only fires once per mount — prevents reload loops
+  // when the query cache briefly serves a stale 'guest' response.
   useEffect(() => {
     if (!meSuccess || !loginUrlSuccess) return
     if (meData?.role === 'admin') return
     if (!loginUrlData?.url?.includes('dev-login')) return
+    if (bypassFired.current) return
+    bypassFired.current = true
     window.location.href = loginUrlData.url
   }, [meData, loginUrlData, meSuccess, loginUrlSuccess])
 
