@@ -26,5 +26,6 @@ export const queryKeys = {
   },
   templates: {
     all: ['templates'] as const,
+    byType: (type: string) => ['templates', type] as const,
   },
 } as const;

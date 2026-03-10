@@ -1,6 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
+import { useQuery } from '@tanstack/react-query'
 import { useDocuments, useCreateDocument, useDeleteDocument } from '@/hooks/use-documents'
 import { useAuthStore } from '@/stores/auth.store'
+import { authApi } from '@/lib/api'
+import { queryKeys } from '@/lib/query'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -23,13 +26,18 @@ function AdminDashboard() {
   const { data: documents, isLoading } = useDocuments()
   const createDoc = useCreateDocument()
   const deleteDoc = useDeleteDocument()
+  const { data: loginUrlData } = useQuery({
+    queryKey: queryKeys.auth.loginUrl,
+    queryFn: () => authApi.loginUrl(),
+    staleTime: Infinity,
+  })
 
   if (!isAdmin) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center flex-col gap-4">
         <p className="text-muted-foreground">Admin access required.</p>
         <Button asChild>
-          <a href="/api/v1/auth/google">Login with Google</a>
+          <a href={loginUrlData?.url ?? '#'}>Login</a>
         </Button>
       </div>
     )

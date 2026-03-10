@@ -88,5 +88,12 @@ export const authApi = {
 // ─── Templates ───────────────────────────────────────────────────────────────
 
 export const templatesApi = {
-  list: (): Promise<ApiResponse<Template[]>> => client.get('templates').json(),
+  list: (type?: 'resume' | 'portfolio' | 'cover_letter'): Promise<ApiResponse<Template[]>> =>
+    client.get('templates', type ? { searchParams: { type } } : undefined).json(),
+};
+
+// ─── Export ──────────────────────────────────────────────────────────────────
+
+export const exportApi = {
+  docxUrl: (id: string): string => `${BASE_URL}/export/documents/${id}/docx`,
 };

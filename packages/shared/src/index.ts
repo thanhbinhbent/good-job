@@ -73,6 +73,12 @@ export const resumeContentSchema = z.object({
   projects: z.array(projectItemSchema).default([]),
 });
 
+export type PersonalSection = z.infer<typeof personalSectionSchema>;
+export type ExperienceItem = z.infer<typeof experienceItemSchema>;
+export type EducationItem = z.infer<typeof educationItemSchema>;
+export type SkillGroup = z.infer<typeof skillGroupSchema>;
+export type CertificationItem = z.infer<typeof certificationItemSchema>;
+export type ProjectItem = z.infer<typeof projectItemSchema>;
 export type ResumeContent = z.infer<typeof resumeContentSchema>;
 
 // ─── Portfolio Content ─────────────────────────────────────────────────────────
@@ -123,6 +129,11 @@ export const portfolioContentSchema = z.object({
 });
 
 export type PortfolioContent = z.infer<typeof portfolioContentSchema>;
+export type HeroSection = z.infer<typeof heroSectionSchema>;
+export type AboutSection = z.infer<typeof aboutSectionSchema>;
+export type TechStackItem = z.infer<typeof techStackItemSchema>;
+export type TimelineItem = z.infer<typeof timelineItemSchema>;
+export type ContactSection = z.infer<typeof contactSectionSchema>;
 
 // ─── Cover Letter Content ──────────────────────────────────────────────────────
 

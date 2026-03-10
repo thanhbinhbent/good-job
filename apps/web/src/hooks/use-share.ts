@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { shareApi } from '../lib/api';
 import { queryKeys } from '../lib/query';
 import { useAuthStore } from '../stores/auth.store';
@@ -24,8 +24,22 @@ export function useShareLinksByDocument(documentId: string) {
 }
 
 export function useCreateShareLink() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: CreateShareLinkDto) => shareApi.create(body),
+    onSuccess: (_data, variables) => {
+      void qc.invalidateQueries({ queryKey: queryKeys.share.byDocument(variables.documentId) });
+    },
+  });
+}
+
+export function useDeleteShareLink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => shareApi.delete(id),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: ['share'] });
+    },
   });
 }
 

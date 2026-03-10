@@ -20,6 +20,74 @@ export type UpdateDocumentInput = {
   content?: unknown;
 };
 
+function defaultContent(type: CreateDocumentInput['type']): unknown {
+  if (type === 'resume') {
+    return {
+      personal: {
+        name: 'Your Name',
+        title: 'Software Engineer',
+        email: 'you@example.com',
+        phone: '',
+        location: '',
+        website: '',
+        linkedin: '',
+        github: '',
+      },
+      experience: [],
+      education: [],
+      skills: [],
+      certifications: [],
+      projects: [],
+    };
+  }
+
+  if (type === 'portfolio') {
+    return {
+      hero: {
+        headline: 'Hello, I\'m Your Name',
+        subheadline: 'I build things for the web.',
+        ctaLabel: 'View my work',
+        ctaUrl: '#projects',
+        avatarUrl: '',
+      },
+      about: {
+        bio: 'A short bio about yourself.',
+        highlights: [],
+      },
+      projects: [],
+      techStack: [],
+      timeline: [],
+      contact: {
+        email: 'you@example.com',
+        linkedin: '',
+        github: '',
+        twitter: '',
+        website: '',
+      },
+    };
+  }
+
+  // cover_letter
+  const today = new Date().toISOString().split('T')[0];
+  return {
+    header: {
+      senderName: 'Your Name',
+      senderTitle: 'Software Engineer',
+      senderEmail: 'you@example.com',
+      senderPhone: '',
+      date: today,
+      recipientName: '',
+      recipientTitle: '',
+      companyName: 'Company Name',
+      companyAddress: '',
+    },
+    opening: 'Dear Hiring Manager,',
+    body: 'I am excited to apply for this position…',
+    closing: 'Sincerely,\nYour Name',
+    jobTitle: '',
+  };
+}
+
 @Injectable()
 export class DocumentsService {
   private get db() {
@@ -42,12 +110,13 @@ export class DocumentsService {
 
   create(input: CreateDocumentInput): DocumentRow {
     const now = new Date();
+    const content = input.content ?? defaultContent(input.type);
     const row: NewDocument = {
       id: ulid(),
       type: input.type,
       title: input.title,
       templateId: input.templateId ?? 'default',
-      content: JSON.stringify(input.content ?? {}),
+      content: JSON.stringify(content),
       createdAt: now,
       updatedAt: now,
     };
