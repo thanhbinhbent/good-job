@@ -64,6 +64,7 @@ npm install
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 # → fill in GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, ADMIN_EMAILS in api/.env
+# → set ADMIN_BYPASS=true in api/.env to skip Google login during local dev
 
 # 3. Run database migrations
 npm run db:migrate
@@ -82,6 +83,7 @@ Open `http://localhost:5173` in your browser.
 
 | Variable | Description | Required |
 |----------|-------------|----------|
+| `ADMIN_BYPASS` | Set `true` to skip Google OAuth in dev (blocked in production) | No |
 | `PORT` | API server port (default `3000`) | No |
 | `DATABASE_URL` | Path to SQLite file | Yes |
 | `JWT_SECRET` | Secret for access tokens | Yes |

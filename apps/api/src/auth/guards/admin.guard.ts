@@ -6,8 +6,14 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
+import type { AdminPayload } from '../auth.service';
+
+/** When ADMIN_BYPASS=true (dev only), skip all JWT validation and inject a fake admin. */
+const isBypassEnabled = (): boolean =>
+  process.env.ADMIN_BYPASS === 'true' &&
+  process.env.NODE_ENV !== 'production';
 
 @Injectable()
 export class AdminGuard extends AuthGuard('jwt') implements CanActivate {
@@ -21,6 +27,14 @@ export class AdminGuard extends AuthGuard('jwt') implements CanActivate {
       context.getClass(),
     ]);
     if (isPublic) return true;
+
+    if (isBypassEnabled()) {
+      const req = context.switchToHttp().getRequest<Request>();
+      const fakeAdmin: AdminPayload = { sub: 'admin', role: 'admin' };
+      (req as Request & { user: AdminPayload }).user = fakeAdmin;
+      return true;
+    }
+
     return super.canActivate(context) as boolean | Promise<boolean>;
   }
 
