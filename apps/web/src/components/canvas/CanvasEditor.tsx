@@ -8,8 +8,12 @@ import { GlobalStylePanel } from './GlobalStylePanel'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Loader2, Save, Eye, Columns, Palette } from 'lucide-react'
+import {
+  Loader2, Save, Eye, Columns, Palette,
+  PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
+} from 'lucide-react'
 import type { CanvasDocument } from '@binh-tran/shared'
+import { cn } from '@/lib/utils'
 
 interface Props {
   documentId: string
@@ -34,6 +38,8 @@ export function CanvasEditor({
   const { doc, load, isDirty, markSaved } = useCanvasStore()
   const [leftTab, setLeftTab] = useState<LeftTab>('sections')
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [leftCollapsed, setLeftCollapsed] = useState(false)
+  const [rightCollapsed, setRightCollapsed] = useState(false)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Init canvas from existing canvas doc or convert from legacy content
@@ -73,7 +79,7 @@ export function CanvasEditor({
   return (
     <div className="flex flex-col h-[calc(100vh-120px)] min-h-[600px]">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-card shrink-0">
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card shrink-0">
         <div className="flex items-center gap-2">
           <Tabs value={leftTab} onValueChange={(v) => setLeftTab(v as LeftTab)}>
             <TabsList className="h-7">
@@ -88,11 +94,11 @@ export function CanvasEditor({
           {isDirty && (
             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
               <span className="size-1.5 rounded-full bg-amber-400 inline-block" />
-              Unsaved changes
+              Unsaved
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={() => setPreviewOpen(true)}>
             <Eye className="size-3" /> Preview
           </Button>
@@ -106,8 +112,42 @@ export function CanvasEditor({
       {/* 3-pane editor */}
       <div className="flex flex-1 min-h-0">
         {/* Left panel */}
-        <div className="w-60 shrink-0 border-r border-border overflow-hidden flex flex-col bg-card">
-          {leftTab === 'sections' ? <SectionPanel /> : <GlobalStylePanel />}
+        <div className={cn(
+          'shrink-0 border-r border-border overflow-hidden flex flex-col bg-card transition-all duration-200',
+          leftCollapsed ? 'w-10' : 'w-60',
+        )}>
+          {leftCollapsed ? (
+            // Collapsed: show only the expand button pinned at bottom
+            <div className="flex flex-col items-center h-full py-3 gap-2">
+              <div className="flex-1" />
+              <button
+                className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors py-2"
+                title="Expand panel"
+                onClick={() => setLeftCollapsed(false)}
+              >
+                <PanelLeftOpen className="size-4" />
+                <span className="text-[8px] uppercase tracking-widest font-medium" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Structure</span>
+              </button>
+              <div className="flex-1" />
+            </div>
+          ) : (
+            <>
+              {leftTab === 'sections' ? <SectionPanel /> : <GlobalStylePanel />}
+              {/* Collapse button pinned at bottom of panel */}
+              <div className="shrink-0 border-t border-border px-3 py-2 flex items-center justify-between bg-card">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
+                  {leftTab === 'sections' ? 'Structure' : 'Style'}
+                </span>
+                <button
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title="Collapse panel"
+                  onClick={() => setLeftCollapsed(true)}
+                >
+                  <PanelLeftClose className="size-3.5" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Canvas stage */}
@@ -118,8 +158,38 @@ export function CanvasEditor({
         </div>
 
         {/* Right panel — block properties */}
-        <div className="w-64 shrink-0 border-l border-border overflow-hidden flex flex-col bg-card">
-          <BlockPropertiesPanel />
+        <div className={cn(
+          'shrink-0 border-l border-border overflow-hidden flex flex-col bg-card transition-all duration-200',
+          rightCollapsed ? 'w-10' : 'w-64',
+        )}>
+          {rightCollapsed ? (
+            <div className="flex flex-col items-center h-full py-3">
+              <div className="flex-1" />
+              <button
+                className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors py-2"
+                title="Expand panel"
+                onClick={() => setRightCollapsed(false)}
+              >
+                <PanelRightOpen className="size-4" />
+                <span className="text-[8px] uppercase tracking-widest font-medium" style={{ writingMode: 'vertical-rl' }}>Properties</span>
+              </button>
+              <div className="flex-1" />
+            </div>
+          ) : (
+            <>
+              <BlockPropertiesPanel />
+              <div className="shrink-0 border-t border-border px-3 py-2 flex items-center justify-between bg-card">
+                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Properties</span>
+                <button
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                  title="Collapse panel"
+                  onClick={() => setRightCollapsed(true)}
+                >
+                  <PanelRightClose className="size-3.5" />
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 

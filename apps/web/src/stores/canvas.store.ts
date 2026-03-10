@@ -196,6 +196,16 @@ interface CanvasStore {
 
   // Columns
   updateColumn: (sectionId: string, columnId: string, patch: Partial<Omit<CanvasColumn, 'id' | 'blocks'>>) => void
+
+  // Cross-container move
+  transferBlock: (
+    fromSectionId: string,
+    fromColumnId: string,
+    blockId: string,
+    toSectionId: string,
+    toColumnId: string,
+    atIndex: number,
+  ) => void
 }
 
 function mutate(
@@ -409,4 +419,22 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
         : s.doc,
       isDirty: true,
     })),
+
+  transferBlock: (fromSectionId, fromColumnId, blockId, toSectionId, toColumnId, atIndex) =>
+    set((s) => {
+      if (!s.doc) return s
+      let movedBlock: CanvasBlock | undefined
+      const afterRemove = mutateCol(s.doc, fromSectionId, fromColumnId, (c) => {
+        movedBlock = c.blocks.find((b) => b.id === blockId)
+        return { ...c, blocks: c.blocks.filter((b) => b.id !== blockId) }
+      })
+      if (!movedBlock) return s
+      const block = movedBlock
+      const afterInsert = mutateCol(afterRemove, toSectionId, toColumnId, (c) => {
+        const arr = [...c.blocks]
+        arr.splice(Math.min(atIndex, arr.length), 0, block)
+        return { ...c, blocks: arr }
+      })
+      return { ...s, doc: afterInsert, isDirty: true }
+    }),
 }))

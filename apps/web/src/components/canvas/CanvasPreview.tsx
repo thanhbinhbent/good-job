@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
-import type { CanvasDocument, CanvasSection, CanvasColumn } from '@binh-tran/shared'
-import { BlockRenderer, toRgba } from './BlockRenderer'
+import {
+  DndContext, PointerSensor, useSensor, useSensors, closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import type { CanvasDocument, CanvasSection, CanvasColumn, CanvasBlock } from '@binh-tran/shared'
+import { BlockRenderer } from './BlockRenderer'
+import { toRgba } from './canvas-utils'
 import { useCanvasStore } from '@/stores/canvas.store'
 
 interface Props {
@@ -154,6 +163,51 @@ function SectionRenderer({
   )
 }
 
+// ── Sortable block wrapper (for canvas DnD) ───────────────────────────────────
+
+interface SortableBlockItemProps {
+  block: CanvasBlock
+  section: CanvasSection
+  column: CanvasColumn
+  doc: CanvasDocument
+  index: number
+  isPreview: boolean
+}
+
+function SortableBlockItem({ block, section, column, doc, index, isPreview }: SortableBlockItemProps) {
+  const { selectedBlockId, selectBlock, editingBlockId } = useCanvasStore()
+  const isEditing = editingBlockId === block.id
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: block.id,
+    disabled: isPreview || isEditing,
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.45 : 1 }}
+      // Spread DnD listeners onto the wrapper so dragging works by holding and moving the block
+      {...attributes}
+      {...listeners}
+    >
+      <BlockRenderer
+        block={block}
+        style={doc.style}
+        sectionId={section.id}
+        columnId={column.id}
+        isFirst={index === 0}
+        isLast={index === column.blocks.length - 1}
+        isSelected={!isPreview && selectedBlockId === block.id}
+        isPreview={isPreview}
+        onClick={() => selectBlock(section.id, column.id, block.id)}
+      />
+    </div>
+  )
+}
+
+// ── Column renderer ───────────────────────────────────────────────────────────
+
 function ColumnRenderer({
   column, section, doc, isPreview,
 }: {
@@ -162,38 +216,73 @@ function ColumnRenderer({
   doc: CanvasDocument
   isPreview: boolean
 }) {
-  const { selectedBlockId, selectBlock } = useCanvasStore()
+  const { reorderBlocks } = useCanvasStore()
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  )
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIdx = column.blocks.findIndex((b) => b.id === active.id)
+      const newIdx = column.blocks.findIndex((b) => b.id === over.id)
+      if (oldIdx !== -1 && newIdx !== -1) {
+        const newOrder = arrayMove(column.blocks, oldIdx, newIdx).map((b) => b.id)
+        reorderBlocks(section.id, column.id, newOrder)
+      }
+    }
+  }
+
+  const colStyle: React.CSSProperties = {
+    flex: column.weight,
+    paddingTop: column.paddingY ?? (section.columns.length > 1 ? section.paddingY : 0),
+    paddingBottom: column.paddingY ?? (section.columns.length > 1 ? section.paddingY : 0),
+    paddingLeft: column.paddingX ?? (section.columns.length > 1 ? section.paddingX : 0),
+    paddingRight: column.paddingX ?? (section.columns.length > 1 ? section.paddingX : 0),
+    background: column.background ? toRgba(column.background) : undefined,
+    minWidth: 0,
+  }
+
+  if (isPreview) {
+    return (
+      <div style={colStyle}>
+        {column.blocks.map((block, idx) => (
+          <BlockRenderer
+            key={block.id}
+            block={block}
+            style={doc.style}
+            sectionId={section.id}
+            columnId={column.id}
+            isFirst={idx === 0}
+            isLast={idx === column.blocks.length - 1}
+            isPreview
+          />
+        ))}
+      </div>
+    )
+  }
 
   return (
-    <div
-      style={{
-        flex: column.weight,
-        paddingTop: column.paddingY ?? (section.columns.length > 1 ? section.paddingY : 0),
-        paddingBottom: column.paddingY ?? (section.columns.length > 1 ? section.paddingY : 0),
-        paddingLeft: column.paddingX ?? (section.columns.length > 1 ? section.paddingX : 0),
-        paddingRight: column.paddingX ?? (section.columns.length > 1 ? section.paddingX : 0),
-        background: column.background ? toRgba(column.background) : undefined,
-        minWidth: 0,
-      }}
-    >
-      {column.blocks.map((block, idx) => (
-        <BlockRenderer
-          key={block.id}
-          block={block}
-          style={doc.style}
-          sectionId={section.id}
-          columnId={column.id}
-          isFirst={idx === 0}
-          isLast={idx === column.blocks.length - 1}
-          isSelected={!isPreview && selectedBlockId === block.id}
-          isPreview={isPreview}
-          onClick={() => selectBlock(section.id, column.id, block.id)}
-        />
-      ))}
-      {/* Empty column drop zone */}
-      {!isPreview && column.blocks.length === 0 && (
+    <div style={colStyle}>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={column.blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+          {column.blocks.map((block, idx) => (
+            <SortableBlockItem
+              key={block.id}
+              block={block}
+              section={section}
+              column={column}
+              doc={doc}
+              index={idx}
+              isPreview={false}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+      {column.blocks.length === 0 && (
         <div
-          className="min-h-[40px] rounded border-2 border-dashed border-blue-300/30 flex items-center justify-center text-[10px] text-blue-300/60 cursor-default select-none"
+          className="min-h-10 rounded border-2 border-dashed border-indigo-300/20 flex items-center justify-center text-[10px] text-indigo-300/40 cursor-default select-none"
           onClick={(e) => e.stopPropagation()}
         >
           Empty column
