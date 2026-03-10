@@ -22,6 +22,7 @@ export const queryKeys = {
   },
   auth: {
     me: ['auth', 'me'] as const,
+    loginUrl: ['auth', 'login-url'] as const,
   },
   templates: {
     all: ['templates'] as const,

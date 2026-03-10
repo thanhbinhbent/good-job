@@ -20,6 +20,12 @@ function RootLayout() {
     staleTime: Infinity,
   })
 
+  const { data: loginUrlData } = useQuery({
+    queryKey: queryKeys.auth.loginUrl,
+    queryFn: () => authApi.loginUrl(),
+    staleTime: Infinity,
+  })
+
   useEffect(() => {
     setAdmin(data?.role === 'admin')
   }, [data, setAdmin])
@@ -42,7 +48,7 @@ function RootLayout() {
             </>
           ) : (
             <Button variant="ghost" size="sm" asChild>
-              <a href={authApi.loginUrl()}>Admin Login</a>
+              <a href={loginUrlData?.url ?? '#'}>Admin Login</a>
             </Button>
           )}
         </nav>

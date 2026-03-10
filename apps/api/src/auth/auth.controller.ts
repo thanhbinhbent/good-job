@@ -68,6 +68,20 @@ export class AuthController {
     res.redirect(`${frontendUrl}/admin`);
   }
 
+  /** Returns the correct admin login URL — /auth/dev-login when ADMIN_BYPASS=true, /auth/google otherwise. */
+  @Public()
+  @Get('login-url')
+  loginUrl(): { url: string } {
+    const isBypass =
+      process.env.ADMIN_BYPASS === 'true' &&
+      process.env.NODE_ENV !== 'production';
+    const port = process.env.PORT ?? '3000';
+    const apiBase = `http://localhost:${port}/api/v1`;
+    return {
+      url: isBypass ? `${apiBase}/auth/dev-login` : `${apiBase}/auth/google`,
+    };
+  }
+
   @Get('me')
   me(@Req() req: Request): { role: string } {
     const user = req.user as { role: string } | undefined;

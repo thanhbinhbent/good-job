@@ -81,7 +81,7 @@ export const shareApi = {
 
 export const authApi = {
   me: (): Promise<{ role: string }> => client.get('auth/me').json(),
-  loginUrl: (): string => `${BASE_URL}/auth/google`,
+  loginUrl: (): Promise<{ url: string }> => client.get('auth/login-url').json(),
   logout: (): string => `${BASE_URL}/auth/logout`,
 };
 
