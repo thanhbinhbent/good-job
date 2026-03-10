@@ -1,13 +1,10 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { useDocument, usePatchSection, useUpdateDocument } from '@/hooks/use-documents'
+import { useDocument, useUpdateDocument } from '@/hooks/use-documents'
 import { useAuthStore } from '@/stores/auth.store'
 import { InlineEdit } from '@/components/editor/InlineEdit'
-import { ResumeEditor } from '@/components/editor/ResumeEditor'
-import { PortfolioEditor } from '@/components/editor/PortfolioEditor'
-import { CoverLetterEditor } from '@/components/editor/CoverLetterEditor'
+import { CanvasEditor } from '@/components/canvas/CanvasEditor'
 import { ShareDialog } from '@/components/ShareDialog'
-import { TemplateSelector } from '@/components/templates/TemplateSelector'
 import { DEFAULT_TEMPLATE_ID } from '@/components/templates/registry'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,7 +12,7 @@ import { ArrowLeft, Download, Loader2 } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { exportApi } from '@/lib/api'
 import { downloadPDF } from '@/components/export/download-pdf'
-import type { ResumeContent, PortfolioContent, CoverLetterContent, Document } from '@binh-tran/shared'
+import type { Document, CanvasDocument } from '@binh-tran/shared'
 
 export const Route = createFileRoute('/admin/$documentId')({
   component: DocumentEditorPage,
@@ -26,9 +23,8 @@ function DocumentEditorPage() {
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const { data: doc, isLoading } = useDocument(documentId)
   const updateDoc = useUpdateDocument(documentId)
-  const patchSection = usePatchSection(documentId)
   const [pdfLoading, setPdfLoading] = useState(false)
-  const [templateId, setTemplateId] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
 
   if (isLoading) {
     return <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">Loading…</div>
@@ -38,16 +34,24 @@ function DocumentEditorPage() {
     return <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">Document not found.</div>
   }
 
-  const content = JSON.parse(doc.content as string) as Record<string, unknown>
-  const activeTemplateId = templateId ?? doc.templateId ?? DEFAULT_TEMPLATE_ID[doc.type as keyof typeof DEFAULT_TEMPLATE_ID]
+  const rawContent = typeof doc.content === 'string'
+    ? (JSON.parse(doc.content) as Record<string, unknown>)
+    : (doc.content as Record<string, unknown>)
 
-  const handleApplyTemplate = (newTemplateId: string) => {
-    setTemplateId(newTemplateId)
-    updateDoc.mutate({ templateId: newTemplateId })
-  }
+  // Detect if content is already a canvas doc (has version:1)
+  const isCanvas = rawContent && (rawContent as { version?: number }).version === 1
+  const initialCanvas = isCanvas ? (rawContent as unknown as CanvasDocument) : null
 
-  const saveSection = (key: string, data: unknown) => {
-    patchSection.mutate({ sectionKey: key, data })
+  const activeTemplateId = doc.templateId
+    ?? DEFAULT_TEMPLATE_ID[doc.type as keyof typeof DEFAULT_TEMPLATE_ID]
+
+  const handleSaveCanvas = async (canvasDoc: CanvasDocument) => {
+    setIsSaving(true)
+    try {
+      await updateDoc.mutateAsync({ content: canvasDoc as unknown as Record<string, unknown> })
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleExportPDF = async () => {
@@ -64,9 +68,9 @@ function DocumentEditorPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-6 py-8">
+    <div className="flex flex-col h-screen overflow-hidden">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-border bg-card shrink-0">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="sm" asChild>
             <Link to="/admin">
@@ -76,17 +80,14 @@ function DocumentEditorPage() {
           </Button>
           <Separator orientation="vertical" className="h-5" />
           <Badge variant="secondary">{doc.type.replace('_', ' ')}</Badge>
+          <InlineEdit
+            value={doc.title}
+            onSave={(title) => updateDoc.mutate({ title })}
+            isAdmin={isAdmin}
+            className="text-base font-semibold"
+          />
         </div>
         <div className="flex items-center gap-2">
-          {isAdmin && (
-            <TemplateSelector
-              documentType={doc.type as 'resume' | 'portfolio' | 'cover_letter'}
-              currentTemplateId={activeTemplateId}
-              content={content}
-              title={doc.title}
-              onApply={handleApplyTemplate}
-            />
-          )}
           <ShareDialog documentId={doc.id} />
           <Button variant="outline" size="sm" onClick={() => void handleExportPDF()} disabled={pdfLoading}>
             {pdfLoading ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Download className="size-4 mr-1" />}
@@ -99,40 +100,18 @@ function DocumentEditorPage() {
         </div>
       </div>
 
-      {/* Document Title */}
-      <div className="mb-8">
-        <InlineEdit
-          value={doc.title}
-          onSave={(title) => updateDoc.mutate({ title })}
-          isAdmin={isAdmin}
-          className="text-2xl font-bold"
+      {/* Canvas editor — full remaining height */}
+      <div className="flex-1 min-h-0">
+        <CanvasEditor
+          documentId={doc.id}
+          documentType={doc.type as 'resume' | 'portfolio' | 'cover_letter'}
+          rawContent={rawContent}
+          currentTemplateId={activeTemplateId}
+          initialCanvas={initialCanvas}
+          onSave={handleSaveCanvas}
+          isSaving={isSaving}
         />
       </div>
-
-      {/* Type-specific section editor */}
-      {doc.type === 'resume' && (
-        <ResumeEditor
-          content={content as unknown as ResumeContent}
-          isAdmin={isAdmin}
-          onSave={saveSection}
-        />
-      )}
-
-      {doc.type === 'portfolio' && (
-        <PortfolioEditor
-          content={content as unknown as PortfolioContent}
-          isAdmin={isAdmin}
-          onSave={saveSection}
-        />
-      )}
-
-      {doc.type === 'cover_letter' && (
-        <CoverLetterEditor
-          content={content as unknown as CoverLetterContent}
-          isAdmin={isAdmin}
-          onSave={saveSection}
-        />
-      )}
     </div>
   )
 }

@@ -239,6 +239,219 @@ export const templateSchema = z.object({
 
 export type Template = z.infer<typeof templateSchema>;
 
+// ─── Canvas Document Schema ────────────────────────────────────────────────────
+// A fully dynamic, user-customisable document model.
+// Inspired by Canva / Enhancv / Resume.io editor paradigms.
+// Structure: DocumentCanvas → sections[] → columns[] → blocks[]
+// Every visual and content property lives in a typed, serialisable block.
+
+// ── Fonts & Colors ──────────────────────────────────────────────────────────
+
+export const FONT_FAMILIES = [
+  'Inter', 'Geist', 'Georgia', 'Times New Roman', 'Garamond',
+  'Roboto', 'Open Sans', 'Lato', 'Merriweather', 'Playfair Display',
+  'Source Code Pro', 'JetBrains Mono', 'Raleway', 'Montserrat',
+] as const
+
+export type FontFamily = typeof FONT_FAMILIES[number]
+
+export const canvasColorSchema = z.object({
+  hex: z.string(),  // '#1e3a5f'
+  opacity: z.number().min(0).max(1).default(1),
+})
+export type CanvasColor = z.infer<typeof canvasColorSchema>
+
+export const canvasBorderSchema = z.object({
+  width: z.number().default(0),
+  style: z.enum(['solid', 'dashed', 'dotted']).default('solid'),
+  color: canvasColorSchema,
+  radius: z.number().default(0),  // px
+})
+export type CanvasBorder = z.infer<typeof canvasBorderSchema>
+
+// ── Block types — each block = one atomic piece of content ──────────────────
+
+// Text block (heading / paragraph / label)
+export const textBlockSchema = z.object({
+  kind: z.literal('text'),
+  id: z.string(),
+  content: z.string().default(''),        // HTML (Tiptap)
+  fontSize: z.number().default(14),       // px
+  fontFamily: z.string().default('Inter'),
+  fontWeight: z.enum(['300','400','500','600','700','800']).default('400'),
+  fontStyle: z.enum(['normal','italic']).default('normal'),
+  color: canvasColorSchema.default({ hex: '#111111', opacity: 1 }),
+  align: z.enum(['left','center','right','justify']).default('left'),
+  lineHeight: z.number().default(1.5),
+  letterSpacing: z.number().default(0),   // em
+  marginBottom: z.number().default(4),    // px
+  textTransform: z.enum(['none','uppercase','lowercase','capitalize']).default('none'),
+})
+export type TextBlock = z.infer<typeof textBlockSchema>
+
+// Date range block
+export const dateBlockSchema = z.object({
+  kind: z.literal('date'),
+  id: z.string(),
+  startDate: z.string().default(''),
+  endDate: z.string().optional(),
+  current: z.boolean().default(false),
+  format: z.enum(['MMM YYYY','YYYY','MM/YYYY','YYYY-MM']).default('MMM YYYY'),
+  fontSize: z.number().default(12),
+  color: canvasColorSchema.default({ hex: '#666666', opacity: 1 }),
+  align: z.enum(['left','center','right']).default('left'),
+  marginBottom: z.number().default(4),
+})
+export type DateBlock = z.infer<typeof dateBlockSchema>
+
+// Tag / Badge list block  
+export const tagBlockSchema = z.object({
+  kind: z.literal('tags'),
+  id: z.string(),
+  items: z.array(z.string()).default([]),
+  chipBackground: canvasColorSchema.default({ hex: '#e2e8f0', opacity: 1 }),
+  chipColor: canvasColorSchema.default({ hex: '#1e293b', opacity: 1 }),
+  chipRadius: z.number().default(4),
+  fontSize: z.number().default(11),
+  gap: z.number().default(6),           // px gap between tags
+  marginBottom: z.number().default(8),
+})
+export type TagBlock = z.infer<typeof tagBlockSchema>
+
+// Progress/skill bar block
+export const progressBlockSchema = z.object({
+  kind: z.literal('progress'),
+  id: z.string(),
+  label: z.string().default(''),
+  value: z.number().min(0).max(100).default(80),
+  trackColor: canvasColorSchema.default({ hex: '#e2e8f0', opacity: 1 }),
+  fillColor: canvasColorSchema.default({ hex: '#2563eb', opacity: 1 }),
+  height: z.number().default(6),
+  showLabel: z.boolean().default(true),
+  showValue: z.boolean().default(false),
+  marginBottom: z.number().default(8),
+})
+export type ProgressBlock = z.infer<typeof progressBlockSchema>
+
+// Divider block
+export const dividerBlockSchema = z.object({
+  kind: z.literal('divider'),
+  id: z.string(),
+  color: canvasColorSchema.default({ hex: '#e2e8f0', opacity: 1 }),
+  thickness: z.number().default(1),
+  style: z.enum(['solid','dashed','dotted']).default('solid'),
+  marginTop: z.number().default(8),
+  marginBottom: z.number().default(8),
+})
+export type DividerBlock = z.infer<typeof dividerBlockSchema>
+
+// Avatar / image block
+export const imageBlockSchema = z.object({
+  kind: z.literal('image'),
+  id: z.string(),
+  url: z.string().default(''),
+  width: z.number().default(80),         // px
+  height: z.number().default(80),
+  radius: z.number().default(50),        // % — 50 = circle
+  align: z.enum(['left','center','right']).default('left'),
+  marginBottom: z.number().default(12),
+})
+export type ImageBlock = z.infer<typeof imageBlockSchema>
+
+// Link block
+export const linkBlockSchema = z.object({
+  kind: z.literal('link'),
+  id: z.string(),
+  label: z.string().default(''),
+  url: z.string().default(''),
+  icon: z.string().optional(),           // lucide icon name
+  fontSize: z.number().default(12),
+  color: canvasColorSchema.default({ hex: '#2563eb', opacity: 1 }),
+  marginBottom: z.number().default(4),
+})
+export type LinkBlock = z.infer<typeof linkBlockSchema>
+
+// Spacer block
+export const spacerBlockSchema = z.object({
+  kind: z.literal('spacer'),
+  id: z.string(),
+  height: z.number().default(16),        // px
+})
+export type SpacerBlock = z.infer<typeof spacerBlockSchema>
+
+// Union of all block types
+export const canvasBlockSchema = z.discriminatedUnion('kind', [
+  textBlockSchema,
+  dateBlockSchema,
+  tagBlockSchema,
+  progressBlockSchema,
+  dividerBlockSchema,
+  imageBlockSchema,
+  linkBlockSchema,
+  spacerBlockSchema,
+])
+export type CanvasBlock = z.infer<typeof canvasBlockSchema>
+export type CanvasBlockKind = CanvasBlock['kind']
+
+// ── Column ──────────────────────────────────────────────────────────────────
+
+export const canvasColumnSchema = z.object({
+  id: z.string(),
+  weight: z.number().default(1),         // flex-weight relative to siblings
+  paddingX: z.number().default(0),       // px
+  paddingY: z.number().default(0),
+  background: canvasColorSchema.optional(),
+  blocks: z.array(canvasBlockSchema).default([]),
+})
+export type CanvasColumn = z.infer<typeof canvasColumnSchema>
+
+// ── Section ─────────────────────────────────────────────────────────────────
+
+export const canvasSectionSchema = z.object({
+  id: z.string(),
+  label: z.string().default('Section'),  // user-editable section name
+  hidden: z.boolean().default(false),
+  columns: z.array(canvasColumnSchema).min(1).default([]),  // 1–3 columns
+  // Section-level visual overrides
+  paddingX: z.number().default(40),      // px
+  paddingY: z.number().default(16),
+  background: canvasColorSchema.optional(),
+  border: canvasBorderSchema.optional(),
+  gap: z.number().default(24),           // gap between columns in px
+})
+export type CanvasSection = z.infer<typeof canvasSectionSchema>
+
+// ── Global document style ────────────────────────────────────────────────────
+
+export const canvasStyleSchema = z.object({
+  // Page
+  pageWidth: z.number().default(794),    // px — A4 = 794
+  pageBackground: canvasColorSchema.default({ hex: '#ffffff', opacity: 1 }),
+  pagePaddingX: z.number().default(0),   // outer margin handled in sections
+  pagePaddingY: z.number().default(0),
+
+  // Typography defaults (overridable per block)
+  fontFamily: z.string().default('Inter'),
+  baseFontSize: z.number().default(14),
+  headingFontFamily: z.string().optional(),
+
+  // Palette shortcuts
+  primaryColor: canvasColorSchema.default({ hex: '#1e3a5f', opacity: 1 }),
+  accentColor: canvasColorSchema.default({ hex: '#2563eb', opacity: 1 }),
+  textColor: canvasColorSchema.default({ hex: '#111111', opacity: 1 }),
+  mutedColor: canvasColorSchema.default({ hex: '#6b7280', opacity: 1 }),
+})
+export type CanvasStyle = z.infer<typeof canvasStyleSchema>
+
+// ── Root canvas document ─────────────────────────────────────────────────────
+
+export const canvasDocumentSchema = z.object({
+  version: z.literal(1).default(1),
+  style: canvasStyleSchema,
+  sections: z.array(canvasSectionSchema).default([]),
+})
+export type CanvasDocument = z.infer<typeof canvasDocumentSchema>
+
 // ─── API Envelope ─────────────────────────────────────────────────────────────
 
 export type ApiResponse<T> = {
