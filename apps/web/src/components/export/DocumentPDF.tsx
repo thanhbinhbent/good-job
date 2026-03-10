@@ -1,4 +1,3 @@
-import React from 'react'
 import { Document as PDFDocument, Page, View, Text, StyleSheet } from '@react-pdf/renderer'
 import type {
   ResumeContent,

@@ -7,6 +7,8 @@ import { ResumeEditor } from '@/components/editor/ResumeEditor'
 import { PortfolioEditor } from '@/components/editor/PortfolioEditor'
 import { CoverLetterEditor } from '@/components/editor/CoverLetterEditor'
 import { ShareDialog } from '@/components/ShareDialog'
+import { TemplateSelector } from '@/components/templates/TemplateSelector'
+import { DEFAULT_TEMPLATE_ID } from '@/components/templates/registry'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ArrowLeft, Download, Loader2 } from 'lucide-react'
@@ -26,6 +28,7 @@ function DocumentEditorPage() {
   const updateDoc = useUpdateDocument(documentId)
   const patchSection = usePatchSection(documentId)
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [templateId, setTemplateId] = useState<string | null>(null)
 
   if (isLoading) {
     return <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">Loading…</div>
@@ -36,6 +39,12 @@ function DocumentEditorPage() {
   }
 
   const content = JSON.parse(doc.content as string) as Record<string, unknown>
+  const activeTemplateId = templateId ?? doc.templateId ?? DEFAULT_TEMPLATE_ID[doc.type as keyof typeof DEFAULT_TEMPLATE_ID]
+
+  const handleApplyTemplate = (newTemplateId: string) => {
+    setTemplateId(newTemplateId)
+    updateDoc.mutate({ templateId: newTemplateId })
+  }
 
   const saveSection = (key: string, data: unknown) => {
     patchSection.mutate({ sectionKey: key, data })
@@ -69,6 +78,15 @@ function DocumentEditorPage() {
           <Badge variant="secondary">{doc.type.replace('_', ' ')}</Badge>
         </div>
         <div className="flex items-center gap-2">
+          {isAdmin && (
+            <TemplateSelector
+              documentType={doc.type as 'resume' | 'portfolio' | 'cover_letter'}
+              currentTemplateId={activeTemplateId}
+              content={content}
+              title={doc.title}
+              onApply={handleApplyTemplate}
+            />
+          )}
           <ShareDialog documentId={doc.id} />
           <Button variant="outline" size="sm" onClick={() => void handleExportPDF()} disabled={pdfLoading}>
             {pdfLoading ? <Loader2 className="size-4 mr-1 animate-spin" /> : <Download className="size-4 mr-1" />}

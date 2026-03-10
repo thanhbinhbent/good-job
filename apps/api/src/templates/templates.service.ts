@@ -6,26 +6,78 @@ import { templates } from '../db/schema';
 type TemplateRow = typeof templates.$inferSelect;
 
 const DEFAULT_TEMPLATES: TemplateRow[] = [
+  // ── Resume ──────────────────────────────────────────────────────────────────
   {
-    id: 'resume-default',
-    name: 'Classic',
+    id: 'resume-harvard',
+    name: 'Harvard',
     type: 'resume',
     previewUrl: null,
     isDefault: true,
   },
   {
-    id: 'portfolio-default',
-    name: 'Classic',
+    id: 'resume-modern',
+    name: 'Modern',
+    type: 'resume',
+    previewUrl: null,
+    isDefault: false,
+  },
+  {
+    id: 'resume-minimal',
+    name: 'Minimal',
+    type: 'resume',
+    previewUrl: null,
+    isDefault: false,
+  },
+  {
+    id: 'resume-tech',
+    name: 'Tech',
+    type: 'resume',
+    previewUrl: null,
+    isDefault: false,
+  },
+  // ── Portfolio ────────────────────────────────────────────────────────────────
+  {
+    id: 'portfolio-grid',
+    name: 'Grid',
     type: 'portfolio',
     previewUrl: null,
     isDefault: true,
   },
   {
-    id: 'cover-letter-default',
-    name: 'Classic',
+    id: 'portfolio-developer',
+    name: 'Developer',
+    type: 'portfolio',
+    previewUrl: null,
+    isDefault: false,
+  },
+  {
+    id: 'portfolio-creative',
+    name: 'Creative',
+    type: 'portfolio',
+    previewUrl: null,
+    isDefault: false,
+  },
+  // ── Cover Letter ─────────────────────────────────────────────────────────────
+  {
+    id: 'cover-letter-formal',
+    name: 'Formal',
     type: 'cover_letter',
     previewUrl: null,
     isDefault: true,
+  },
+  {
+    id: 'cover-letter-modern',
+    name: 'Modern',
+    type: 'cover_letter',
+    previewUrl: null,
+    isDefault: false,
+  },
+  {
+    id: 'cover-letter-minimal',
+    name: 'Minimal',
+    type: 'cover_letter',
+    previewUrl: null,
+    isDefault: false,
   },
 ];
 
