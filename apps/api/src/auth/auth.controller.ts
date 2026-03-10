@@ -4,6 +4,7 @@ import type { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
+import { AdminGuard } from './guards/admin.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -82,7 +83,7 @@ export class AuthController {
     };
   }
 
-  @Public()
+  @UseGuards(AdminGuard)
   @Get('me')
   me(@Req() req: Request): { role: string } {
     const user = req.user as { role: string } | undefined;

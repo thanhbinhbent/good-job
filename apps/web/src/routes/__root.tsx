@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { authApi } from '@/lib/api'
 import { queryKeys } from '@/lib/query'
 import { useAuthStore } from '@/stores/auth.store'
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -13,11 +13,10 @@ export const Route = createRootRoute({
 
 function RootLayout() {
   const setAdmin = useAuthStore((s) => s.setAdmin)
-  const bypassFired = useRef(false)
 
   const { data: meData, isSuccess: meSuccess } = useQuery({
     queryKey: queryKeys.auth.me,
-    queryFn: () => authApi.me(),
+    queryFn: () => authApi.me().catch(() => ({ role: 'guest' as const })),
     retry: false,
     staleTime: Infinity,
     refetchOnWindowFocus: false,
@@ -31,19 +30,23 @@ function RootLayout() {
   })
 
   // When ADMIN_BYPASS=true: auto-authenticate without any user interaction.
-  // Guard with a ref so this only fires once per mount — prevents reload loops
-  // when the query cache briefly serves a stale 'guest' response.
+  // Use sessionStorage so the flag survives the full-page redirect and prevents
+  // an infinite loop (useRef resets on every remount after window.location.href).
   useEffect(() => {
     if (!meSuccess || !loginUrlSuccess) return
     if (meData?.role === 'admin') return
     if (!loginUrlData?.url?.includes('dev-login')) return
-    if (bypassFired.current) return
-    bypassFired.current = true
+    if (sessionStorage.getItem('bypass_redirected')) return
+    sessionStorage.setItem('bypass_redirected', '1')
     window.location.href = loginUrlData.url
   }, [meData, loginUrlData, meSuccess, loginUrlSuccess])
 
   useEffect(() => {
     setAdmin(meData?.role === 'admin')
+    // Clear the bypass flag once we're confirmed admin so logout + re-login works
+    if (meData?.role === 'admin') {
+      sessionStorage.removeItem('bypass_redirected')
+    }
   }, [meData, setAdmin])
 
   const isBypassMode = loginUrlSuccess && loginUrlData?.url?.includes('dev-login')

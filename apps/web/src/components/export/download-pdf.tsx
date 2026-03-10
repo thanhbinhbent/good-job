@@ -5,14 +5,19 @@ import type { Document as DocumentEntity } from '@binh-tran/shared'
 import { ResumePDF, PortfolioPDF, CoverLetterPDF } from '@/components/export/DocumentPDF'
 
 export async function downloadPDF(doc: DocumentEntity): Promise<void> {
+  // content is stored as JSON string in SQLite — parse it if needed
+  const content = typeof doc.content === 'string'
+    ? (JSON.parse(doc.content) as unknown)
+    : doc.content
+
   let pdfDoc: React.ReactElement
 
   if (doc.type === 'resume') {
-    pdfDoc = <ResumePDF content={doc.content as ResumeContent} />
+    pdfDoc = <ResumePDF content={content as ResumeContent} />
   } else if (doc.type === 'portfolio') {
-    pdfDoc = <PortfolioPDF content={doc.content as PortfolioContent} />
+    pdfDoc = <PortfolioPDF content={content as PortfolioContent} />
   } else {
-    pdfDoc = <CoverLetterPDF title={doc.title} content={doc.content as CoverLetterContent} />
+    pdfDoc = <CoverLetterPDF title={doc.title} content={content as CoverLetterContent} />
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
