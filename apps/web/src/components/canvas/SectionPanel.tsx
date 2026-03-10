@@ -1,5 +1,13 @@
+import {
+  DndContext, PointerSensor, useSensor, useSensors, closestCenter,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useCanvasStore, makeTextBlock, makeDateBlock, makeTagBlock, makeDividerBlock, makeSpacerBlock, makeProgressBlock, makeImageBlock, makeLinkBlock } from '@/stores/canvas.store'
-import type { CanvasBlock, CanvasBlockKind } from '@binh-tran/shared'
+import type { CanvasBlock, CanvasBlockKind, CanvasSection, CanvasColumn } from '@binh-tran/shared'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -39,16 +47,249 @@ function makeBlock(kind: CanvasBlockKind): CanvasBlock {
   return makeTextBlock()
 }
 
+// ── Sortable Block Row ────────────────────────────────────────────────────────
+
+function SortableBlockRow({ block, sec, col }: { block: CanvasBlock; sec: CanvasSection; col: CanvasColumn }) {
+  const { selectedBlockId, selectBlock, removeBlock, duplicateBlock } = useCanvasStore()
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'group flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs transition-colors',
+        selectedBlockId === block.id ? 'bg-blue-500/15 text-blue-600' : 'hover:bg-muted/60',
+      )}
+      onClick={() => selectBlock(sec.id, col.id, block.id)}
+    >
+      {/* Drag handle */}
+      <button
+        className="shrink-0 opacity-20 group-hover:opacity-60 hover:opacity-100 cursor-grab active:cursor-grabbing touch-none"
+        {...attributes}
+        {...listeners}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <GripVertical className="size-3 text-muted-foreground" />
+      </button>
+      <BlockKindIcon kind={block.kind} />
+      <span className="flex-1 truncate opacity-80">{blockLabel(block)}</span>
+      {/* Duplicate / Delete on hover */}
+      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          className="p-0.5 rounded hover:bg-muted"
+          title="Duplicate"
+          onClick={(e) => { e.stopPropagation(); duplicateBlock(sec.id, col.id, block.id) }}
+        >
+          <Plus className="size-3 text-muted-foreground" />
+        </button>
+        <button
+          className="p-0.5 rounded hover:bg-muted"
+          title="Delete"
+          onClick={(e) => { e.stopPropagation(); removeBlock(sec.id, col.id, block.id); selectBlock(null, null, null) }}
+        >
+          <Trash2 className="size-3 text-destructive" />
+        </button>
+      </div>
+    </div>
+  )
+}
+
+// ── Sortable Block List (per column) ─────────────────────────────────────────
+
+function SortableBlockList({ sec, col }: { sec: CanvasSection; col: CanvasColumn }) {
+  const { reorderBlocks } = useCanvasStore()
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIdx = col.blocks.findIndex((b) => b.id === active.id)
+      const newIdx = col.blocks.findIndex((b) => b.id === over.id)
+      const newOrder = arrayMove(col.blocks, oldIdx, newIdx).map((b) => b.id)
+      reorderBlocks(sec.id, col.id, newOrder)
+    }
+  }
+
+  return (
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={col.blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
+        <div className="space-y-0.5">
+          {col.blocks.map((block) => (
+            <SortableBlockRow key={block.id} block={block} sec={sec} col={col} />
+          ))}
+          {col.blocks.length === 0 && (
+            <div className="text-[10px] text-muted-foreground italic px-6 py-1">Empty — add a block</div>
+          )}
+        </div>
+      </SortableContext>
+    </DndContext>
+  )
+}
+
+// ── Sortable Section Row ──────────────────────────────────────────────────────
+
+function SortableSectionRow({ sec, idx, total }: { sec: CanvasSection; idx: number; total: number }) {
+  const {
+    removeSection, moveSection, updateSection, toggleSectionHidden,
+    setSectionColumns, addBlock, selectBlock, selectedSectionId, selectedBlockId, selectSection,
+  } = useCanvasStore()
+
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sec.id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
+
+  const isSelected = selectedSectionId === sec.id && !selectedBlockId
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      {/* Section header row */}
+      <div
+        className={cn(
+          'group flex items-center gap-1.5 px-3 py-2 cursor-pointer transition-colors border-b border-border/50',
+          isSelected ? 'bg-primary/10' : 'hover:bg-muted/40',
+          sec.hidden && 'opacity-40',
+        )}
+        onClick={() => selectSection(isSelected ? null : sec.id)}
+      >
+        {/* Drag handle */}
+        <button
+          className="shrink-0 opacity-0 group-hover:opacity-50 hover:opacity-100! cursor-grab active:cursor-grabbing touch-none -ml-1"
+          {...attributes}
+          {...listeners}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <GripVertical className="size-3.5 text-muted-foreground" />
+        </button>
+        <span className="flex-1 text-xs font-medium truncate">{sec.label || 'Untitled'}</span>
+        <Badge variant="outline" className="text-[9px] py-0 px-1">{sec.columns.length}col</Badge>
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button className="p-0.5 rounded hover:bg-muted" onClick={(e) => { e.stopPropagation(); moveSection(sec.id, 'up') }} disabled={idx === 0}>
+            <ChevronUp className="size-3 text-muted-foreground" />
+          </button>
+          <button className="p-0.5 rounded hover:bg-muted" onClick={(e) => { e.stopPropagation(); moveSection(sec.id, 'down') }} disabled={idx === total - 1}>
+            <ChevronDown className="size-3 text-muted-foreground" />
+          </button>
+          <button className="p-0.5 rounded hover:bg-muted" onClick={(e) => { e.stopPropagation(); toggleSectionHidden(sec.id) }}>
+            {sec.hidden ? <EyeOff className="size-3 text-muted-foreground" /> : <Eye className="size-3 text-muted-foreground" />}
+          </button>
+          <button className="p-0.5 rounded hover:bg-muted" onClick={(e) => { e.stopPropagation(); removeSection(sec.id) }}>
+            <Trash2 className="size-3 text-destructive" />
+          </button>
+        </div>
+      </div>
+
+      {/* Expanded section settings */}
+      {isSelected && (
+        <div className="bg-muted/20 px-4 py-3 border-b border-border/50 space-y-3">
+          {/* Name */}
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Section Name</Label>
+            <Input value={sec.label} className="h-7 text-xs"
+              onChange={(e) => updateSection(sec.id, { label: e.target.value })} />
+          </div>
+
+          {/* Columns */}
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Columns</Label>
+            <div className="grid grid-cols-3 gap-1">
+              {([1, 2, 3] as const).map((n) => (
+                <button
+                  key={n}
+                  className={cn(
+                    'py-1 rounded border text-xs font-medium transition-colors',
+                    sec.columns.length === n
+                      ? 'border-primary bg-primary/10 text-primary'
+                      : 'border-border bg-card hover:bg-muted',
+                  )}
+                  onClick={() => setSectionColumns(sec.id, n)}
+                >
+                  {n === 1 ? '│ Full' : n === 2 ? '│ │ Half' : '│││ 3rd'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Padding */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Pad H</Label>
+              <Input type="number" value={sec.paddingX} min={0} max={120} className="h-7 text-xs"
+                onChange={(e) => updateSection(sec.id, { paddingX: Number(e.target.value) })} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Pad V</Label>
+              <Input type="number" value={sec.paddingY} min={0} max={120} className="h-7 text-xs"
+                onChange={(e) => updateSection(sec.id, { paddingY: Number(e.target.value) })} />
+            </div>
+          </div>
+
+          {/* Section background */}
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Background</Label>
+            <div className="flex items-center gap-2">
+              <input type="color"
+                value={sec.background?.hex ?? '#ffffff'}
+                className="w-6 h-6 rounded border border-border cursor-pointer p-0"
+                onChange={(e) => updateSection(sec.id, { background: { hex: e.target.value, opacity: sec.background?.opacity ?? 1 } })}
+              />
+              <Input value={sec.background?.hex ?? ''} placeholder="#ffffff" className="h-7 text-xs flex-1 font-mono"
+                onChange={(e) => updateSection(sec.id, { background: { hex: e.target.value, opacity: sec.background?.opacity ?? 1 } })}
+              />
+              {sec.background && (
+                <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => updateSection(sec.id, { background: undefined })}>✕</button>
+              )}
+            </div>
+          </div>
+
+          {/* Blocks per column — sortable */}
+          {sec.columns.map((col, colIdx) => (
+            <div key={col.id} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                  {sec.columns.length > 1 ? `Col ${colIdx + 1} blocks` : 'Blocks'}
+                  <span className="ml-1 text-[9px] opacity-60">({col.blocks.length})</span>
+                </Label>
+                <AddBlockMenu onAdd={(kind) => { const b = makeBlock(kind); addBlock(sec.id, col.id, b); selectBlock(sec.id, col.id, b.id) }} />
+              </div>
+              <SortableBlockList sec={sec} col={col} />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Section panel ─────────────────────────────────────────────────────────────
 
 export function SectionPanel() {
-  const {
-    doc, addSection, removeSection, moveSection,
-    updateSection, toggleSectionHidden, setSectionColumns,
-    selectedSectionId, selectSection, selectedBlockId, selectBlock, addBlock,
-  } = useCanvasStore()
+  const { doc, addSection, reorderSections } = useCanvasStore()
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   if (!doc) return null
+
+  function handleSectionDragEnd(event: DragEndEvent) {
+    if (!doc) return
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIdx = doc.sections.findIndex((s) => s.id === active.id)
+      const newIdx = doc.sections.findIndex((s) => s.id === over.id)
+      const newOrder = arrayMove(doc.sections, oldIdx, newIdx).map((s) => s.id)
+      reorderSections(newOrder)
+    }
+  }
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -60,138 +301,13 @@ export function SectionPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        {doc.sections.map((sec, idx) => {
-          const isSelected = selectedSectionId === sec.id && !selectedBlockId
-          return (
-            <div key={sec.id}>
-              {/* Section row */}
-              <div
-                className={cn(
-                  'group flex items-center gap-1.5 px-3 py-2 cursor-pointer transition-colors border-b border-border/50',
-                  isSelected ? 'bg-primary/10' : 'hover:bg-muted/40',
-                  sec.hidden && 'opacity-40',
-                )}
-                onClick={() => selectSection(isSelected ? null : sec.id)}
-              >
-                <GripVertical className="size-3 text-muted-foreground/40 shrink-0" />
-                <span className="flex-1 text-xs font-medium truncate">{sec.label || 'Untitled'}</span>
-                <Badge variant="outline" className="text-[9px] py-0 px-1">{sec.columns.length}col</Badge>
-                <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button className="p-0.5 rounded hover:bg-muted" onClick={(e) => { e.stopPropagation(); moveSection(sec.id, 'up') }} disabled={idx === 0}>
-                    <ChevronUp className="size-3 text-muted-foreground" />
-                  </button>
-                  <button className="p-0.5 rounded hover:bg-muted" onClick={(e) => { e.stopPropagation(); moveSection(sec.id, 'down') }} disabled={idx === doc.sections.length - 1}>
-                    <ChevronDown className="size-3 text-muted-foreground" />
-                  </button>
-                  <button className="p-0.5 rounded hover:bg-muted" onClick={(e) => { e.stopPropagation(); toggleSectionHidden(sec.id) }}>
-                    {sec.hidden ? <EyeOff className="size-3 text-muted-foreground" /> : <Eye className="size-3 text-muted-foreground" />}
-                  </button>
-                  <button className="p-0.5 rounded hover:bg-muted" onClick={(e) => { e.stopPropagation(); removeSection(sec.id) }}>
-                    <Trash2 className="size-3 text-destructive" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Section settings when selected */}
-              {isSelected && (
-                <div className="bg-muted/20 px-4 py-3 border-b border-border/50 space-y-3">
-                  {/* Name */}
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Section Name</Label>
-                    <Input value={sec.label} className="h-7 text-xs"
-                      onChange={(e) => updateSection(sec.id, { label: e.target.value })} />
-                  </div>
-
-                  {/* Columns */}
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Columns</Label>
-                    <div className="grid grid-cols-3 gap-1">
-                      {([1, 2, 3] as const).map((n) => (
-                        <button
-                          key={n}
-                          className={cn(
-                            'py-1 rounded border text-xs font-medium transition-colors',
-                            sec.columns.length === n
-                              ? 'border-primary bg-primary/10 text-primary'
-                              : 'border-border bg-card hover:bg-muted',
-                          )}
-                          onClick={() => setSectionColumns(sec.id, n)}
-                        >
-                          {n === 1 ? '│ Full' : n === 2 ? '│ │ Half' : '│││ 3rd'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Padding */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Pad H</Label>
-                      <Input type="number" value={sec.paddingX} min={0} max={120} className="h-7 text-xs"
-                        onChange={(e) => updateSection(sec.id, { paddingX: Number(e.target.value) })} />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Pad V</Label>
-                      <Input type="number" value={sec.paddingY} min={0} max={120} className="h-7 text-xs"
-                        onChange={(e) => updateSection(sec.id, { paddingY: Number(e.target.value) })} />
-                    </div>
-                  </div>
-
-                  {/* Section background */}
-                  <div className="space-y-1">
-                    <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Background</Label>
-                    <div className="flex items-center gap-2">
-                      <input type="color"
-                        value={sec.background?.hex ?? '#ffffff'}
-                        className="w-6 h-6 rounded border border-border cursor-pointer p-0"
-                        onChange={(e) => updateSection(sec.id, { background: { hex: e.target.value, opacity: sec.background?.opacity ?? 1 } })}
-                      />
-                      <Input value={sec.background?.hex ?? ''} placeholder="#ffffff" className="h-7 text-xs flex-1 font-mono"
-                        onChange={(e) => updateSection(sec.id, { background: { hex: e.target.value, opacity: sec.background?.opacity ?? 1 } })}
-                      />
-                      {sec.background && (
-                        <button className="text-xs text-muted-foreground hover:text-foreground" onClick={() => updateSection(sec.id, { background: undefined })}>✕</button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Column sections: add blocks per column */}
-                  {sec.columns.map((col, colIdx) => (
-                    <div key={col.id} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">
-                          {sec.columns.length > 1 ? `Column ${colIdx + 1} blocks` : 'Blocks'}
-                          <span className="ml-1 text-[9px] opacity-60">({col.blocks.length})</span>
-                        </Label>
-                        <AddBlockMenu onAdd={(kind) => { const b = makeBlock(kind); addBlock(sec.id, col.id, b); selectBlock(sec.id, col.id, b.id) }} />
-                      </div>
-                      <div className="space-y-0.5">
-                        {col.blocks.map((block) => (
-                          <div
-                            key={block.id}
-                            className={cn(
-                              'flex items-center gap-1.5 px-2 py-1 rounded cursor-pointer text-xs transition-colors',
-                              selectedBlockId === block.id ? 'bg-blue-500/15 text-blue-600' : 'hover:bg-muted/60',
-                            )}
-                            onClick={() => selectBlock(sec.id, col.id, block.id)}
-                          >
-                            <BlockKindIcon kind={block.kind} />
-                            <span className="flex-1 truncate opacity-80">
-                              {blockLabel(block)}
-                            </span>
-                          </div>
-                        ))}
-                        {col.blocks.length === 0 && (
-                          <div className="text-[10px] text-muted-foreground italic px-2">Empty — add a block above</div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        })}
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleSectionDragEnd}>
+          <SortableContext items={doc.sections.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+            {doc.sections.map((sec, idx) => (
+              <SortableSectionRow key={sec.id} sec={sec} idx={idx} total={doc.sections.length} />
+            ))}
+          </SortableContext>
+        </DndContext>
 
         {doc.sections.length === 0 && (
           <div className="p-6 text-center text-xs text-muted-foreground">

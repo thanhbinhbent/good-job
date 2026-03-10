@@ -163,6 +163,7 @@ interface CanvasStore {
   selectedSectionId: string | null
   selectedColumnId: string | null
   selectedBlockId: string | null
+  editingBlockId: string | null
   isDirty: boolean
 
   // Lifecycle
@@ -178,6 +179,7 @@ interface CanvasStore {
   removeSection: (sectionId: string) => void
   updateSection: (sectionId: string, patch: Partial<Omit<CanvasSection, 'id' | 'columns'>>) => void
   moveSection: (sectionId: string, direction: 'up' | 'down') => void
+  reorderSections: (newIds: string[]) => void
   selectSection: (sectionId: string | null) => void
   setSectionColumns: (sectionId: string, count: 1 | 2 | 3) => void
   toggleSectionHidden: (sectionId: string) => void
@@ -187,7 +189,9 @@ interface CanvasStore {
   removeBlock: (sectionId: string, columnId: string, blockId: string) => void
   updateBlock: (sectionId: string, columnId: string, blockId: string, patch: Partial<CanvasBlock>) => void
   moveBlock: (sectionId: string, columnId: string, blockId: string, direction: 'up' | 'down') => void
+  reorderBlocks: (sectionId: string, columnId: string, newIds: string[]) => void
   selectBlock: (sectionId: string | null, columnId: string | null, blockId: string | null) => void
+  setEditingBlock: (blockId: string | null) => void
   duplicateBlock: (sectionId: string, columnId: string, blockId: string) => void
 
   // Columns
@@ -222,9 +226,10 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
   selectedSectionId: null,
   selectedColumnId: null,
   selectedBlockId: null,
+  editingBlockId: null,
   isDirty: false,
 
-  load: (doc) => set({ doc, isDirty: false, selectedSectionId: null, selectedBlockId: null }),
+  load: (doc) => set({ doc, isDirty: false, selectedSectionId: null, selectedBlockId: null, editingBlockId: null }),
   reset: () => set({ doc: null, isDirty: false }),
   markSaved: () => set({ isDirty: false }),
 
@@ -267,6 +272,14 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       if (swapIdx < 0 || swapIdx >= arr.length) return s
       ;[arr[idx], arr[swapIdx]] = [arr[swapIdx], arr[idx]]
       return { doc: { ...s.doc, sections: arr }, isDirty: true }
+    }),
+
+  reorderSections: (newIds) =>
+    set((s) => {
+      if (!s.doc) return s
+      const map = new Map(s.doc.sections.map((sec) => [sec.id, sec]))
+      const reordered = newIds.map((id) => map.get(id)).filter(Boolean) as CanvasSection[]
+      return { doc: { ...s.doc, sections: reordered }, isDirty: true }
     }),
 
   selectSection: (sectionId) =>
@@ -352,6 +365,22 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
         isDirty: true,
       }
     }),
+
+  reorderBlocks: (sectionId, columnId, newIds) =>
+    set((s) => {
+      if (!s.doc) return s
+      const sec = s.doc.sections.find((sec) => sec.id === sectionId)
+      const col = sec?.columns.find((c) => c.id === columnId)
+      if (!col) return s
+      const map = new Map(col.blocks.map((b) => [b.id, b]))
+      const reordered = newIds.map((id) => map.get(id)).filter(Boolean) as CanvasBlock[]
+      return {
+        doc: mutateCol(s.doc, sectionId, columnId, (c) => ({ ...c, blocks: reordered })),
+        isDirty: true,
+      }
+    }),
+
+  setEditingBlock: (blockId) => set({ editingBlockId: blockId }),
 
   duplicateBlock: (sectionId, columnId, blockId) =>
     set((s) => {
