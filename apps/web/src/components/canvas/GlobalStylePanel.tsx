@@ -17,14 +17,34 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 }
 
 function ColorSwatch({ value, onChange }: { value: CanvasColor; onChange: (c: CanvasColor) => void }) {
+  const alpha = Math.round((value.opacity ?? 1) * 100)
   return (
-    <div className="flex items-center gap-1.5">
-      <input type="color" value={value.hex}
-        className="w-7 h-7 rounded border border-border cursor-pointer p-0"
-        onChange={(e) => onChange({ ...value, hex: e.target.value })}
-      />
-      <Input value={value.hex} className="h-8 text-xs font-mono flex-1"
-        onChange={(e) => onChange({ ...value, hex: e.target.value })} />
+    <div className="grid grid-cols-1 gap-1.5 min-w-0">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <input
+          type="color"
+          value={value.hex}
+          className="w-7 h-7 rounded border border-border cursor-pointer p-0"
+          onChange={(e) => onChange({ ...value, hex: e.target.value })}
+        />
+        <Input
+          value={value.hex}
+          className="h-8 text-xs font-mono flex-1 min-w-0"
+          onChange={(e) => onChange({ ...value, hex: e.target.value })}
+        />
+      </div>
+      <div className="grid grid-cols-[12px_minmax(0,1fr)_34px] items-center gap-1.5 min-w-0">
+        <span className="text-[10px] text-muted-foreground">α</span>
+        <Slider
+          value={[alpha]}
+          min={0}
+          max={100}
+          step={1}
+          className="w-full min-w-0"
+          onValueChange={([v]) => onChange({ ...value, opacity: (v ?? 100) / 100 })}
+        />
+        <span className="text-[10px] text-muted-foreground text-right">{alpha}</span>
+      </div>
     </div>
   )
 }
@@ -59,6 +79,20 @@ export function GlobalStylePanel() {
             <Slider value={[style.pageWidth]} min={600} max={1200} step={2} className="flex-1"
               onValueChange={([v]) => s({ pageWidth: v })} />
             <span className="w-12 text-right font-mono text-[11px]">{style.pageWidth}</span>
+          </div>
+        </Row>
+        <Row label="Pad X">
+          <div className="flex items-center gap-2">
+            <Slider value={[style.pagePaddingX]} min={0} max={80} step={1} className="flex-1"
+              onValueChange={([v]) => s({ pagePaddingX: v })} />
+            <span className="w-12 text-right font-mono text-[11px]">{style.pagePaddingX}px</span>
+          </div>
+        </Row>
+        <Row label="Pad Y">
+          <div className="flex items-center gap-2">
+            <Slider value={[style.pagePaddingY]} min={0} max={80} step={1} className="flex-1"
+              onValueChange={([v]) => s({ pagePaddingY: v })} />
+            <span className="w-12 text-right font-mono text-[11px]">{style.pagePaddingY}px</span>
           </div>
         </Row>
 

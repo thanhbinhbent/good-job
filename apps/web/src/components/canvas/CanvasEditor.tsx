@@ -195,7 +195,7 @@ export function CanvasEditor({
 
       {/* Full preview dialog */}
       <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col p-0 gap-0">
+        <DialogContent className="!w-[96vw] !max-w-[1400px] h-[94vh] max-h-[94vh] flex flex-col p-0 gap-0">
           <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
             <DialogTitle>Document Preview</DialogTitle>
           </DialogHeader>

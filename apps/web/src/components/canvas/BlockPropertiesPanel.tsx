@@ -171,8 +171,13 @@ function TextBlockEditor({ block, update }: { block: import('@binh-tran/shared')
   return (
     <div className="space-y-3">
       <Group title="Content">
-        <div className="min-h-[80px] overflow-hidden rounded border border-border bg-background">
-          <RichTextSection content={block.content} onSave={(html) => p({ content: html })} isAdmin />
+        <div className="min-h-[80px] overflow-hidden rounded border border-border bg-background transition-colors focus-within:border-ring/70">
+          <RichTextSection
+            content={block.content}
+            onSave={(html) => p({ content: html })}
+            isAdmin
+            className="!border-0 !rounded-none hover:!border-0 focus:!border-0"
+          />
         </div>
       </Group>
 

@@ -436,6 +436,10 @@ export function CanvasPreview({ doc, isPreview = false }: Props) {
         background: toRgba(doc.style.forceBackground ?? doc.style.pageBackground),
         fontFamily: doc.style.fontFamily,
         fontSize: doc.style.baseFontSize,
+        paddingLeft: doc.style.pagePaddingX,
+        paddingRight: doc.style.pagePaddingX,
+        paddingTop: doc.style.pagePaddingY,
+        paddingBottom: doc.style.pagePaddingY,
         minHeight: 1000,
         boxShadow: 'none',
       }}
