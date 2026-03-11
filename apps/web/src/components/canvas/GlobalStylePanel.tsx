@@ -9,8 +9,8 @@ import { Separator } from '@/components/ui/separator'
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="grid grid-cols-[90px_1fr] items-center gap-2">
-      <Label className="text-[11px] text-muted-foreground">{label}</Label>
+    <div className="grid grid-cols-[88px_1fr] items-center gap-2.5">
+      <Label className="text-[11px] font-medium text-muted-foreground truncate">{label}</Label>
       {children}
     </div>
   )
@@ -20,10 +20,10 @@ function ColorSwatch({ value, onChange }: { value: CanvasColor; onChange: (c: Ca
   return (
     <div className="flex items-center gap-1.5">
       <input type="color" value={value.hex}
-        className="w-6 h-6 rounded border border-border cursor-pointer p-0"
+        className="w-7 h-7 rounded border border-border cursor-pointer p-0"
         onChange={(e) => onChange({ ...value, hex: e.target.value })}
       />
-      <Input value={value.hex} className="h-7 text-xs font-mono flex-1"
+      <Input value={value.hex} className="h-8 text-xs font-mono flex-1"
         onChange={(e) => onChange({ ...value, hex: e.target.value })} />
     </div>
   )
@@ -42,9 +42,9 @@ export function GlobalStylePanel() {
         <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Global Style</span>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
         {/* Page */}
-        <div className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">Page</div>
+        <div className="text-[11px] font-semibold uppercase text-muted-foreground tracking-widest">Page</div>
         <Row label="Page BG">
           <ColorSwatch value={style.pageBackground} onChange={(c) => s({ pageBackground: c })} />
         </Row>
@@ -52,17 +52,17 @@ export function GlobalStylePanel() {
           <div className="flex items-center gap-2">
             <Slider value={[style.pageWidth]} min={600} max={1200} step={2} className="flex-1"
               onValueChange={([v]) => s({ pageWidth: v })} />
-            <span className="w-10 text-right font-mono text-[11px]">{style.pageWidth}</span>
+            <span className="w-12 text-right font-mono text-[11px]">{style.pageWidth}</span>
           </div>
         </Row>
 
         <Separator />
 
         {/* Typography */}
-        <div className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">Typography</div>
+        <div className="text-[11px] font-semibold uppercase text-muted-foreground tracking-widest">Typography</div>
         <Row label="Body font">
           <Select value={style.fontFamily} onValueChange={(v) => s({ fontFamily: v })}>
-            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               {FONT_FAMILIES.map((f) => (
                 <SelectItem key={f} value={f} style={{ fontFamily: f }}>{f}</SelectItem>
@@ -72,7 +72,7 @@ export function GlobalStylePanel() {
         </Row>
         <Row label="Heading font">
           <Select value={style.headingFontFamily ?? style.fontFamily} onValueChange={(v) => s({ headingFontFamily: v })}>
-            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               {FONT_FAMILIES.map((f) => (
                 <SelectItem key={f} value={f} style={{ fontFamily: f }}>{f}</SelectItem>
@@ -84,15 +84,15 @@ export function GlobalStylePanel() {
           <div className="flex items-center gap-2">
             <Slider value={[style.baseFontSize]} min={8} max={20} step={0.5} className="flex-1"
               onValueChange={([v]) => s({ baseFontSize: v })} />
-            <span className="w-8 text-right font-mono text-[11px]">{style.baseFontSize}px</span>
+            <span className="w-12 text-right font-mono text-[11px]">{style.baseFontSize}px</span>
           </div>
         </Row>
 
         <Separator />
 
         {/* Palette */}
-        <div className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">Color Palette</div>
-        <div className="text-[10px] text-muted-foreground">These set defaults for new blocks. Existing blocks keep their own colors.</div>
+        <div className="text-[11px] font-semibold uppercase text-muted-foreground tracking-widest">Color Palette</div>
+        <div className="text-[11px] text-muted-foreground">These set defaults for new blocks. Existing blocks keep their own colors.</div>
         <Row label="Primary">
           <ColorSwatch value={style.primaryColor} onChange={(c) => s({ primaryColor: c })} />
         </Row>
@@ -109,7 +109,7 @@ export function GlobalStylePanel() {
         <Separator />
 
         {/* Quick presets */}
-        <div className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">Palette Presets</div>
+        <div className="text-[11px] font-semibold uppercase text-muted-foreground tracking-widest">Palette Presets</div>
         <div className="grid grid-cols-3 gap-1.5">
           {PALETTE_PRESETS.map((preset) => (
             <button

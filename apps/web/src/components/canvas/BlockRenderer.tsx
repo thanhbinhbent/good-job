@@ -194,6 +194,7 @@ interface InlineEditorProps {
 function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveDown, onDuplicate, onDelete, onClose }: InlineEditorProps) {
   const { updateBlock } = useCanvasStore()
   const containerRef = useRef<HTMLDivElement>(null)
+  const blurTimerRef = useRef<number | null>(null)
   // Prevent double-save by tracking whether we already saved
   const savedRef = useRef(false)
 
@@ -229,12 +230,35 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
     return () => { editor.off('selectionUpdate', cb); editor.off('transaction', cb) }
   }, [editor])
 
-  // Close when focus leaves the entire editing container (handles blur from selects / inputs too)
-  const handleContainerBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
-    if (containerRef.current?.contains(e.relatedTarget as Node)) return
+  // Close when focus truly leaves the editor container.
+  // Use deferred check to avoid false blur when interacting with native select/input controls.
+  const clearPendingBlur = useCallback(() => {
+    if (blurTimerRef.current !== null) {
+      window.clearTimeout(blurTimerRef.current)
+      blurTimerRef.current = null
+    }
+  }, [])
+
+  const closeIfOutside = useCallback(() => {
+    const root = containerRef.current
+    const active = document.activeElement
+    if (root && active && root.contains(active)) return
     if (editor) save(editor.getHTML())
     onClose()
   }, [editor, save, onClose])
+
+  const handleContainerBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
+    if (containerRef.current?.contains(e.relatedTarget as Node)) return
+    clearPendingBlur()
+    blurTimerRef.current = window.setTimeout(() => {
+      blurTimerRef.current = null
+      closeIfOutside()
+    }, 80)
+  }, [clearPendingBlur, closeIfOutside])
+
+  const handleContainerFocus = useCallback(() => {
+    clearPendingBlur()
+  }, [clearPendingBlur])
 
   // Escape key
   useEffect(() => {
@@ -248,6 +272,8 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
     window.addEventListener('keydown', handleKey, { capture: true })
     return () => window.removeEventListener('keydown', handleKey, { capture: true })
   }, [editor, save, onClose])
+
+  useEffect(() => () => clearPendingBlur(), [clearPendingBlur])
 
   // Block-level styles applied to wrapper → editor inherits via CSS cascade
   const wrapStyle: React.CSSProperties = {
@@ -271,6 +297,7 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
     <div
       ref={containerRef}
       tabIndex={-1}
+      onFocus={handleContainerFocus}
       onBlur={handleContainerBlur}
       className="outline-none"
       style={{

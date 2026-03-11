@@ -268,12 +268,7 @@ export function minimalResumePreset(content: ResumeContent): CanvasDocument {
   }
 
   if (content.experience.length > 0) {
-    const blocks: CanvasBlock[] = []
     content.experience.forEach((exp, i) => {
-      if (i > 0) blocks.push(divider())
-      blocks.push(
-        text(`<strong>${exp.role}</strong>`, { fontSize: 14, fontWeight: '600', marginBottom: 0 }),
-      )
       const rightBlocks = [date(exp.startDate, exp.endDate, exp.current)]
       sections.push(section(i === 0 ? 'Experience' : '', [
         col([
@@ -283,9 +278,7 @@ export function minimalResumePreset(content: ResumeContent): CanvasDocument {
         ], 8),
         col(rightBlocks, 3),
       ], { paddingY: 10 }))
-      void blocks // used to trigger forEach side-effects
     })
-    sections[sections.length - 1] && void 0 // no-op
   }
 
   return { version: 1, style, sections }

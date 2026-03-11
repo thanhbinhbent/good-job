@@ -64,7 +64,7 @@ function SortableBlockRow({ block, sec, col }: { block: CanvasBlock; sec: Canvas
       ref={setNodeRef}
       style={style}
       className={cn(
-        'group flex items-center gap-1 px-2 py-1 rounded cursor-pointer text-xs transition-colors',
+        'group flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer text-xs transition-colors',
         selectedBlockId === block.id ? 'bg-blue-500/15 text-blue-600' : 'hover:bg-muted/60',
       )}
       onClick={() => selectBlock(sec.id, col.id, block.id)}
@@ -121,12 +121,12 @@ function SortableBlockList({ sec, col }: { sec: CanvasSection; col: CanvasColumn
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={col.blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-        <div className="space-y-0.5">
+        <div className="space-y-1">
           {col.blocks.map((block) => (
             <SortableBlockRow key={block.id} block={block} sec={sec} col={col} />
           ))}
           {col.blocks.length === 0 && (
-            <div className="text-[10px] text-muted-foreground italic px-6 py-1">Empty — add a block</div>
+            <div className="text-[11px] text-muted-foreground italic px-6 py-1.5">Empty — add a block</div>
           )}
         </div>
       </SortableContext>
@@ -172,7 +172,7 @@ function SortableSectionRow({ sec, idx, total }: { sec: CanvasSection; idx: numb
           <GripVertical className="size-3.5 text-muted-foreground" />
         </button>
         <span className="flex-1 text-xs font-medium truncate">{sec.label || 'Untitled'}</span>
-        <Badge variant="outline" className="text-[9px] py-0 px-1">{sec.columns.length}col</Badge>
+          <Badge variant="outline" className="text-[10px] py-0 px-1.5">{sec.columns.length}col</Badge>
         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
           <button className="p-0.5 rounded hover:bg-muted" onClick={(e) => { e.stopPropagation(); moveSection(sec.id, 'up') }} disabled={idx === 0}>
             <ChevronUp className="size-3 text-muted-foreground" />
@@ -191,23 +191,23 @@ function SortableSectionRow({ sec, idx, total }: { sec: CanvasSection; idx: numb
 
       {/* Expanded section settings */}
       {isSelected && (
-        <div className="bg-muted/20 px-4 py-3 border-b border-border/50 space-y-3">
+        <div className="bg-muted/20 px-4 py-3 border-b border-border/50 space-y-4">
           {/* Name */}
           <div className="space-y-1">
-            <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Section Name</Label>
-            <Input value={sec.label} className="h-7 text-xs"
+            <Label className="text-[11px] text-muted-foreground uppercase tracking-widest">Section Name</Label>
+            <Input value={sec.label} className="h-8 text-xs"
               onChange={(e) => updateSection(sec.id, { label: e.target.value })} />
           </div>
 
           {/* Columns */}
           <div className="space-y-1">
-            <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Columns</Label>
+            <Label className="text-[11px] text-muted-foreground uppercase tracking-widest">Columns</Label>
             <div className="grid grid-cols-3 gap-1">
               {([1, 2, 3] as const).map((n) => (
                 <button
                   key={n}
                   className={cn(
-                    'py-1 rounded border text-xs font-medium transition-colors',
+                    'h-8 rounded border text-xs font-medium transition-colors',
                     sec.columns.length === n
                       ? 'border-primary bg-primary/10 text-primary'
                       : 'border-border bg-card hover:bg-muted',
@@ -223,27 +223,27 @@ function SortableSectionRow({ sec, idx, total }: { sec: CanvasSection; idx: numb
           {/* Padding */}
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Pad H</Label>
-              <Input type="number" value={sec.paddingX} min={0} max={120} className="h-7 text-xs"
+              <Label className="text-[11px] text-muted-foreground uppercase tracking-widest">Pad H</Label>
+              <Input type="number" value={sec.paddingX} min={0} max={120} className="h-8 text-xs"
                 onChange={(e) => updateSection(sec.id, { paddingX: Number(e.target.value) })} />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Pad V</Label>
-              <Input type="number" value={sec.paddingY} min={0} max={120} className="h-7 text-xs"
+              <Label className="text-[11px] text-muted-foreground uppercase tracking-widest">Pad V</Label>
+              <Input type="number" value={sec.paddingY} min={0} max={120} className="h-8 text-xs"
                 onChange={(e) => updateSection(sec.id, { paddingY: Number(e.target.value) })} />
             </div>
           </div>
 
           {/* Section background */}
           <div className="space-y-1">
-            <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">Background</Label>
+            <Label className="text-[11px] text-muted-foreground uppercase tracking-widest">Background</Label>
             <div className="flex items-center gap-2">
               <input type="color"
                 value={sec.background?.hex ?? '#ffffff'}
-                className="w-6 h-6 rounded border border-border cursor-pointer p-0"
+                className="w-7 h-7 rounded border border-border cursor-pointer p-0"
                 onChange={(e) => updateSection(sec.id, { background: { hex: e.target.value, opacity: sec.background?.opacity ?? 1 } })}
               />
-              <Input value={sec.background?.hex ?? ''} placeholder="#ffffff" className="h-7 text-xs flex-1 font-mono"
+              <Input value={sec.background?.hex ?? ''} placeholder="#ffffff" className="h-8 text-xs flex-1 font-mono"
                 onChange={(e) => updateSection(sec.id, { background: { hex: e.target.value, opacity: sec.background?.opacity ?? 1 } })}
               />
               {sec.background && (
@@ -256,9 +256,9 @@ function SortableSectionRow({ sec, idx, total }: { sec: CanvasSection; idx: numb
           {sec.columns.map((col, colIdx) => (
             <div key={col.id} className="space-y-1">
               <div className="flex items-center justify-between">
-                <Label className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                <Label className="text-[11px] text-muted-foreground uppercase tracking-widest">
                   {sec.columns.length > 1 ? `Col ${colIdx + 1} blocks` : 'Blocks'}
-                  <span className="ml-1 text-[9px] opacity-60">({col.blocks.length})</span>
+                  <span className="ml-1 text-[10px] opacity-60">({col.blocks.length})</span>
                 </Label>
                 <AddBlockMenu onAdd={(kind) => { const b = makeBlock(kind); addBlock(sec.id, col.id, b); selectBlock(sec.id, col.id, b.id) }} />
               </div>
@@ -295,7 +295,7 @@ export function SectionPanel() {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <span className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Sections</span>
-        <Button size="sm" variant="outline" className="h-7 text-xs gap-1" onClick={() => addSection()}>
+        <Button size="sm" variant="outline" className="h-8 text-xs gap-1" onClick={() => addSection()}>
           <Plus className="size-3" /> Add
         </Button>
       </div>
@@ -310,7 +310,7 @@ export function SectionPanel() {
         </DndContext>
 
         {doc.sections.length === 0 && (
-          <div className="p-6 text-center text-xs text-muted-foreground">
+          <div className="p-6 text-center text-sm text-muted-foreground">
             No sections yet.<br />Click "Add" to create one.
           </div>
         )}
@@ -325,12 +325,12 @@ function AddBlockMenu({ onAdd }: { onAdd: (k: CanvasBlockKind) => void }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button size="sm" variant="ghost" className="h-5 text-[10px] gap-0.5 px-1.5">
+        <Button size="sm" variant="ghost" className="h-8 text-xs gap-1 px-2">
           <Plus className="size-3" /> Block
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
-        <DropdownMenuLabel className="text-[10px] uppercase text-muted-foreground">Add Block</DropdownMenuLabel>
+        <DropdownMenuLabel className="text-[11px] uppercase text-muted-foreground">Add Block</DropdownMenuLabel>
         <DropdownMenuGroup>
           {BLOCK_KINDS.map(({ kind, label, icon: Icon }) => (
             <DropdownMenuItem key={kind} className="text-xs gap-2" onClick={() => onAdd(kind)}>

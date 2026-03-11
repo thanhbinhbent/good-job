@@ -114,7 +114,7 @@ export function CanvasEditor({
         {/* Left panel */}
         <div className={cn(
           'shrink-0 border-r border-border overflow-hidden flex flex-col bg-card transition-all duration-200',
-          leftCollapsed ? 'w-10' : 'w-60',
+          leftCollapsed ? 'w-10' : 'w-[17rem]',
         )}>
           {leftCollapsed ? (
             // Collapsed: show only the expand button pinned at bottom
@@ -135,7 +135,7 @@ export function CanvasEditor({
               {leftTab === 'sections' ? <SectionPanel /> : <GlobalStylePanel />}
               {/* Collapse button pinned at bottom of panel */}
               <div className="shrink-0 border-t border-border px-3 py-2 flex items-center justify-between bg-card">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">
+                <span className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium">
                   {leftTab === 'sections' ? 'Structure' : 'Style'}
                 </span>
                 <button
@@ -160,7 +160,7 @@ export function CanvasEditor({
         {/* Right panel — block properties */}
         <div className={cn(
           'shrink-0 border-l border-border overflow-hidden flex flex-col bg-card transition-all duration-200',
-          rightCollapsed ? 'w-10' : 'w-64',
+          rightCollapsed ? 'w-10' : 'w-72',
         )}>
           {rightCollapsed ? (
             <div className="flex flex-col items-center h-full py-3">
@@ -179,7 +179,7 @@ export function CanvasEditor({
             <>
               <BlockPropertiesPanel />
               <div className="shrink-0 border-t border-border px-3 py-2 flex items-center justify-between bg-card">
-                <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-medium">Properties</span>
+                <span className="text-[11px] text-muted-foreground uppercase tracking-widest font-medium">Properties</span>
                 <button
                   className="text-muted-foreground hover:text-foreground transition-colors"
                   title="Collapse panel"

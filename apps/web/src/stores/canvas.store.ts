@@ -190,14 +190,6 @@ interface CanvasStore {
   updateBlock: (sectionId: string, columnId: string, blockId: string, patch: Partial<CanvasBlock>) => void
   moveBlock: (sectionId: string, columnId: string, blockId: string, direction: 'up' | 'down') => void
   reorderBlocks: (sectionId: string, columnId: string, newIds: string[]) => void
-  selectBlock: (sectionId: string | null, columnId: string | null, blockId: string | null) => void
-  setEditingBlock: (blockId: string | null) => void
-  duplicateBlock: (sectionId: string, columnId: string, blockId: string) => void
-
-  // Columns
-  updateColumn: (sectionId: string, columnId: string, patch: Partial<Omit<CanvasColumn, 'id' | 'blocks'>>) => void
-
-  // Cross-container move
   transferBlock: (
     fromSectionId: string,
     fromColumnId: string,
@@ -206,6 +198,12 @@ interface CanvasStore {
     toColumnId: string,
     atIndex: number,
   ) => void
+  selectBlock: (sectionId: string | null, columnId: string | null, blockId: string | null) => void
+  setEditingBlock: (blockId: string | null) => void
+  duplicateBlock: (sectionId: string, columnId: string, blockId: string) => void
+
+  // Columns
+  updateColumn: (sectionId: string, columnId: string, patch: Partial<Omit<CanvasColumn, 'id' | 'blocks'>>) => void
 }
 
 function mutate(
@@ -390,6 +388,32 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
       }
     }),
 
+  transferBlock: (fromSectionId, fromColumnId, blockId, toSectionId, toColumnId, atIndex) =>
+    set((s) => {
+      if (!s.doc) return s
+
+      let movingBlock: CanvasBlock | null = null
+      const withoutSource = mutateCol(s.doc, fromSectionId, fromColumnId, (c) => {
+        movingBlock = c.blocks.find((b) => b.id === blockId) ?? null
+        return { ...c, blocks: c.blocks.filter((b) => b.id !== blockId) }
+      })
+
+      if (!movingBlock) return s
+
+      const withTarget = mutateCol(withoutSource, toSectionId, toColumnId, (c) => {
+        const blocks = [...c.blocks]
+        const targetIndex = Math.max(0, Math.min(atIndex, blocks.length))
+        blocks.splice(targetIndex, 0, movingBlock as CanvasBlock)
+        return { ...c, blocks }
+      })
+
+      return {
+        ...s,
+        doc: withTarget,
+        isDirty: true,
+      }
+    }),
+
   setEditingBlock: (blockId) => set({ editingBlockId: blockId }),
 
   duplicateBlock: (sectionId, columnId, blockId) =>
@@ -419,22 +443,4 @@ export const useCanvasStore = create<CanvasStore>((set) => ({
         : s.doc,
       isDirty: true,
     })),
-
-  transferBlock: (fromSectionId, fromColumnId, blockId, toSectionId, toColumnId, atIndex) =>
-    set((s) => {
-      if (!s.doc) return s
-      let movedBlock: CanvasBlock | undefined
-      const afterRemove = mutateCol(s.doc, fromSectionId, fromColumnId, (c) => {
-        movedBlock = c.blocks.find((b) => b.id === blockId)
-        return { ...c, blocks: c.blocks.filter((b) => b.id !== blockId) }
-      })
-      if (!movedBlock) return s
-      const block = movedBlock
-      const afterInsert = mutateCol(afterRemove, toSectionId, toColumnId, (c) => {
-        const arr = [...c.blocks]
-        arr.splice(Math.min(atIndex, arr.length), 0, block)
-        return { ...c, blocks: arr }
-      })
-      return { ...s, doc: afterInsert, isDirty: true }
-    }),
 }))
