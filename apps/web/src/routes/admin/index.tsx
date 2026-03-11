@@ -1,12 +1,19 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
+import { useMemo, useState } from 'react'
 import { useDocuments, useCreateDocument, useDeleteDocument } from '@/hooks/use-documents'
+import { useTemplates } from '@/hooks/use-templates'
 import { useAuthStore } from '@/stores/auth.store'
 import { authApi } from '@/lib/api'
 import { queryKeys } from '@/lib/query'
+import { TemplateGallery } from '@/components/canvas/TemplateGallery'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { FileText, Globe, Mail, Plus, Trash2 } from 'lucide-react'
 import type { DocumentType } from '@binh-tran/shared'
 
@@ -26,11 +33,45 @@ function AdminDashboard() {
   const { data: documents, isLoading } = useDocuments()
   const createDoc = useCreateDocument()
   const deleteDoc = useDeleteDocument()
+  const [createOpen, setCreateOpen] = useState(false)
+  const [newType, setNewType] = useState<DocumentType>('resume')
+  const [newTitle, setNewTitle] = useState('My Resume')
+  const [newTemplateId, setNewTemplateId] = useState<string>('')
+  const { data: templates = [], isLoading: templatesLoading } = useTemplates(newType)
   const { data: loginUrlData } = useQuery({
     queryKey: queryKeys.auth.loginUrl,
     queryFn: () => authApi.loginUrl(),
     staleTime: Infinity,
   })
+
+  const currentTemplates = useMemo(() => templates.filter((t) => t.type === newType), [templates, newType])
+
+  const defaultTemplateId = useMemo(() => {
+    const found = currentTemplates.find((t) => t.isDefault)?.id ?? currentTemplates[0]?.id ?? ''
+    return found
+  }, [currentTemplates])
+
+  const openCreate = () => {
+    setCreateOpen(true)
+    setNewType('resume')
+    setNewTitle('My Resume')
+    setNewTemplateId('')
+  }
+
+  const onTypeChange = (next: DocumentType) => {
+    setNewType(next)
+    setNewTitle(`My ${TYPE_LABELS[next]}`)
+    setNewTemplateId('')
+  }
+
+  const submitCreate = () => {
+    const templateId = newTemplateId || defaultTemplateId
+    if (!newTitle.trim() || !templateId) return
+    createDoc.mutate(
+      { type: newType, title: newTitle.trim(), templateId },
+      { onSuccess: () => setCreateOpen(false) },
+    )
+  }
 
   if (!isAdmin) {
     return (
@@ -47,21 +88,56 @@ function AdminDashboard() {
     <div className="mx-auto max-w-5xl px-6 py-10">
       <div className="mb-8 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Admin Dashboard</h1>
-        <div className="flex gap-2">
-          {TYPES.map((type) => (
-            <Button
-              key={type}
-              size="sm"
-              variant="outline"
-              disabled={createDoc.isPending}
-              onClick={() => createDoc.mutate({ type, title: `My ${TYPE_LABELS[type]}` })}
-            >
-              <Plus className="size-4 mr-1" />
-              {TYPE_LABELS[type]}
-            </Button>
-          ))}
-        </div>
+        <Button size="sm" onClick={openCreate}>
+          <Plus className="size-4 mr-1" />
+          New Document
+        </Button>
       </div>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create document</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Document type</Label>
+              <Select value={newType} onValueChange={(v) => onTypeChange(v as DocumentType)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TYPES.map((type) => <SelectItem key={type} value={type}>{TYPE_LABELS[type]}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Template</Label>
+              {templatesLoading ? (
+                <div className="text-xs text-muted-foreground">Loading templates…</div>
+              ) : (
+                <TemplateGallery
+                  type={newType}
+                  templates={currentTemplates}
+                  selectedTemplateId={newTemplateId || defaultTemplateId}
+                  onSelect={setNewTemplateId}
+                />
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+              <Button disabled={createDoc.isPending || !newTitle.trim() || !(newTemplateId || defaultTemplateId)} onClick={submitCreate}>
+                {createDoc.isPending ? 'Creating…' : 'Create'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {isLoading && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -10,6 +10,144 @@ import type {
   CoverLetterContent,
 } from '@binh-tran/shared'
 
+export function defaultStructuredContent(type: 'resume' | 'portfolio' | 'cover_letter'): unknown {
+  if (type === 'resume') {
+    return {
+      personal: {
+        name: 'Alex Nguyen',
+        title: 'Senior Product Engineer',
+        email: 'alex.nguyen@example.com',
+        phone: '+84 912 345 678',
+        location: 'Ho Chi Minh City, Vietnam',
+        website: 'alexnguyen.dev',
+        linkedin: 'linkedin.com/in/alex-nguyen',
+        github: 'github.com/alexnguyen',
+        summary: 'Product-minded software engineer with 8+ years building scalable web platforms, design systems, and high-performing teams.',
+      },
+      experience: [
+        {
+          id: id(),
+          company: 'Nimbus Labs',
+          role: 'Senior Frontend Engineer',
+          startDate: '2022-03',
+          endDate: '',
+          current: true,
+          location: 'Remote',
+          description: 'Led migration to modern React architecture, improved page performance by 38%, and shipped reusable editor framework used across 4 products.',
+        },
+        {
+          id: id(),
+          company: 'CloudBridge',
+          role: 'Software Engineer',
+          startDate: '2019-01',
+          endDate: '2022-02',
+          current: false,
+          location: 'Singapore',
+          description: 'Built customer-facing dashboards and document automation workflows serving 50K+ monthly users.',
+        },
+      ],
+      education: [
+        {
+          id: id(),
+          institution: 'University of Engineering & Technology',
+          degree: 'B.Eng.',
+          field: 'Computer Science',
+          startDate: '2013-09',
+          endDate: '2017-06',
+          description: 'Focus on software architecture and human-computer interaction.',
+        },
+      ],
+      skills: [
+        { id: id(), category: 'Frontend', skills: ['React', 'TypeScript', 'TanStack Query', 'Tailwind CSS'] },
+        { id: id(), category: 'Backend', skills: ['Node.js', 'NestJS', 'PostgreSQL', 'SQLite'] },
+      ],
+      certifications: [
+        { id: id(), name: 'AWS Certified Developer Associate', issuer: 'Amazon Web Services', date: '2024-07', url: '' },
+      ],
+      projects: [
+        {
+          id: id(),
+          name: 'Resume Forge',
+          description: 'Template-driven resume builder with PDF export and collaborative editing.',
+          url: 'https://resumeforge.dev',
+          repo: 'https://github.com/alexnguyen/resume-forge',
+          tags: ['React', 'NestJS', 'Editor'],
+        },
+      ],
+    }
+  }
+
+  if (type === 'portfolio') {
+    return {
+      hero: {
+        headline: 'Designing & Shipping Thoughtful Digital Products',
+        subheadline: 'I’m Alex — a product engineer focused on delightful UX and reliable systems.',
+        ctaLabel: 'See projects',
+        ctaUrl: '#projects',
+        avatarUrl: '',
+      },
+      about: {
+        bio: 'I partner with startups and product teams to turn complex requirements into elegant, scalable experiences.',
+        highlights: ['8+ years experience', 'Built products used by 100K+ users', 'Strong UX + engineering balance'],
+      },
+      projects: [
+        {
+          id: id(),
+          name: 'DocFlow Studio',
+          description: 'Low-code document automation platform with visual workflows and custom templates.',
+          url: 'https://docflow.studio',
+          repo: '',
+          tags: ['React', 'TypeScript', 'Automation'],
+        },
+        {
+          id: id(),
+          name: 'Insight Board',
+          description: 'Analytics dashboard with custom report builder and role-based access control.',
+          url: '',
+          repo: 'https://github.com/alexnguyen/insight-board',
+          tags: ['Data Viz', 'NestJS', 'PostgreSQL'],
+        },
+      ],
+      techStack: [
+        { id: id(), name: 'React', level: 'expert', category: 'Frontend' },
+        { id: id(), name: 'TypeScript', level: 'expert', category: 'Language' },
+        { id: id(), name: 'Node.js', level: 'advanced', category: 'Backend' },
+        { id: id(), name: 'Figma', level: 'advanced', category: 'Design' },
+      ],
+      timeline: [
+        { id: id(), year: '2025', title: 'Led platform redesign', description: 'Improved activation conversion by 24%.', type: 'work' },
+        { id: id(), year: '2023', title: 'Launched template engine', description: 'Enabled 10x faster customization for enterprise clients.', type: 'achievement' },
+      ],
+      contact: {
+        email: 'alex.nguyen@example.com',
+        linkedin: 'linkedin.com/in/alex-nguyen',
+        github: 'github.com/alexnguyen',
+        twitter: 'x.com/alexnguyen',
+        website: 'alexnguyen.dev',
+      },
+    }
+  }
+
+  const today = new Date().toISOString().split('T')[0]
+  return {
+    header: {
+      senderName: 'Alex Nguyen',
+      senderTitle: 'Senior Product Engineer',
+      senderEmail: 'alex.nguyen@example.com',
+      senderPhone: '+84 912 345 678',
+      date: today,
+      recipientName: 'Hiring Manager',
+      recipientTitle: 'Engineering Director',
+      companyName: 'Acme Tech',
+      companyAddress: 'District 1, Ho Chi Minh City',
+    },
+    opening: 'Dear Hiring Manager, I’m excited to apply for the Senior Frontend Engineer role at Acme Tech.',
+    body: 'Over the past 8 years, I have delivered design-forward, high-performance web products. I focus on maintainable architecture, collaboration, and measurable business impact.',
+    closing: 'Thank you for your time and consideration. I would welcome the opportunity to discuss how I can contribute to your team.\n\nSincerely,\nAlex Nguyen',
+    jobTitle: 'Senior Frontend Engineer',
+  }
+}
+
 // ─── Low-level helpers ────────────────────────────────────────────────────────
 
 function id() { return ulid().toLowerCase() }
