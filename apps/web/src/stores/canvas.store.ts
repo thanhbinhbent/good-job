@@ -29,6 +29,7 @@ export function makeTextBlock(overrides?: Partial<import('@binh-tran/shared').Te
     letterSpacing: 0,
     marginBottom: 4,
     textTransform: 'none',
+    rowWidth: 100,
     ...overrides,
   }
 }
@@ -44,6 +45,7 @@ export function makeDateBlock(overrides?: Partial<import('@binh-tran/shared').Da
     color: { hex: '#666666', opacity: 1 },
     align: 'left',
     marginBottom: 4,
+    rowWidth: 100,
     ...overrides,
   }
 }
@@ -59,6 +61,7 @@ export function makeTagBlock(overrides?: Partial<import('@binh-tran/shared').Tag
     fontSize: 11,
     gap: 6,
     marginBottom: 8,
+    rowWidth: 100,
     ...overrides,
   }
 }
@@ -72,12 +75,13 @@ export function makeDividerBlock(overrides?: Partial<import('@binh-tran/shared')
     style: 'solid',
     marginTop: 8,
     marginBottom: 8,
+    rowWidth: 100,
     ...overrides,
   }
 }
 
 export function makeSpacerBlock(): import('@binh-tran/shared').SpacerBlock {
-  return { kind: 'spacer', id: newId(), height: 16 }
+  return { kind: 'spacer', id: newId(), height: 16, rowWidth: 100 }
 }
 
 export function makeProgressBlock(): import('@binh-tran/shared').ProgressBlock {
@@ -92,6 +96,7 @@ export function makeProgressBlock(): import('@binh-tran/shared').ProgressBlock {
     showLabel: true,
     showValue: false,
     marginBottom: 8,
+    rowWidth: 100,
   }
 }
 
@@ -105,6 +110,7 @@ export function makeImageBlock(): import('@binh-tran/shared').ImageBlock {
     radius: 50,
     align: 'left',
     marginBottom: 12,
+    rowWidth: 100,
   }
 }
 
@@ -117,6 +123,29 @@ export function makeLinkBlock(): import('@binh-tran/shared').LinkBlock {
     fontSize: 12,
     color: { hex: '#2563eb', opacity: 1 },
     marginBottom: 4,
+    rowWidth: 100,
+  }
+}
+
+export function makeDualTextBlock(overrides?: Partial<import('@binh-tran/shared').DualTextBlock>): import('@binh-tran/shared').DualTextBlock {
+  return {
+    kind: 'dualText',
+    id: newId(),
+    leftContent: '<strong>Title</strong>',
+    rightContent: 'Jan 2020 – Present',
+    fontSize: 13,
+    fontFamily: 'Inter',
+    fontWeight: '600',
+    fontStyle: 'normal',
+    lineHeight: 1.4,
+    letterSpacing: 0,
+    color: { hex: '#111111', opacity: 1 },
+    rightFontWeight: '400',
+    rightColor: { hex: '#6b7280', opacity: 1 },
+    gap: 12,
+    marginBottom: 4,
+    rowWidth: 100,
+    ...overrides,
   }
 }
 

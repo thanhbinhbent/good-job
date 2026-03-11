@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -15,7 +15,7 @@ import {
   SortableContext,
   arrayMove,
   useSortable,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical } from 'lucide-react'
@@ -31,9 +31,45 @@ interface Props {
 }
 
 type DragData = {
-  type: 'block' | 'column-dropzone'
+  type: 'block' | 'column-dropzone' | 'side-dropzone'
   sectionId: string
   columnId: string
+  targetBlockId?: string
+  side?: 'left' | 'right'
+}
+
+type BlockRow = {
+  id: string
+  blocks: CanvasBlock[]
+}
+
+function blockRowId(block: CanvasBlock): string | null {
+  const rowId = 'rowId' in block ? block.rowId : undefined
+  if (!rowId) return null
+  const normalized = rowId.trim()
+  return normalized.length > 0 ? normalized : null
+}
+
+function groupBlocksIntoRows(blocks: CanvasBlock[]): BlockRow[] {
+  const rows: BlockRow[] = []
+
+  for (const block of blocks) {
+    const rowId = blockRowId(block)
+    if (!rowId) {
+      rows.push({ id: block.id, blocks: [block] })
+      continue
+    }
+
+    const prev = rows[rows.length - 1]
+    if (prev && prev.id === `row:${rowId}`) {
+      prev.blocks.push(block)
+      continue
+    }
+
+    rows.push({ id: `row:${rowId}`, blocks: [block] })
+  }
+
+  return rows
 }
 
 function findBlockById(doc: CanvasDocument, blockId: string): CanvasBlock | null {
@@ -66,9 +102,10 @@ interface SortableBlockItemProps {
   doc: CanvasDocument
   index: number
   isPreview: boolean
+  activeBlockId: string | null
 }
 
-function SortableBlockItem({ block, section, column, doc, index, isPreview }: SortableBlockItemProps) {
+function SortableBlockItem({ block, section, column, doc, index, isPreview, activeBlockId }: SortableBlockItemProps) {
   const { selectedBlockId, selectBlock, editingBlockId } = useCanvasStore()
   const isEditing = editingBlockId === block.id
 
@@ -115,7 +152,49 @@ function SortableBlockItem({ block, section, column, doc, index, isPreview }: So
         isPreview={isPreview}
         onClick={() => selectBlock(section.id, column.id, block.id)}
       />
+
+      {!isPreview && !!activeBlockId && activeBlockId !== block.id && (
+        <>
+          <SideDropZone sectionId={section.id} columnId={column.id} targetBlockId={block.id} side="left" />
+          <SideDropZone sectionId={section.id} columnId={column.id} targetBlockId={block.id} side="right" />
+        </>
+      )}
     </div>
+  )
+}
+
+function SideDropZone({
+  sectionId,
+  columnId,
+  targetBlockId,
+  side,
+}: {
+  sectionId: string
+  columnId: string
+  targetBlockId: string
+  side: 'left' | 'right'
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `side::${side}::${targetBlockId}`,
+    data: {
+      type: 'side-dropzone',
+      sectionId,
+      columnId,
+      targetBlockId,
+      side,
+    } satisfies DragData,
+  })
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={cn(
+        'absolute top-0 bottom-0 w-3 z-30',
+        side === 'left' ? '-left-1.5' : '-right-1.5',
+        isOver ? 'bg-primary/25 border border-primary rounded-sm' : 'bg-transparent',
+      )}
+      aria-hidden
+    />
   )
 }
 
@@ -129,6 +208,7 @@ interface ColumnRendererProps {
 }
 
 function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeBlockId }: ColumnRendererProps) {
+  const { updateBlock } = useCanvasStore()
   const { setNodeRef: dropRef } = useDroppable({
     id: `drop::${column.id}`,
     data: {
@@ -161,21 +241,106 @@ function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeB
     overColumnId === column.id &&
     !column.blocks.some((b) => b.id === activeBlockId)
 
+  const rows = useMemo(() => groupBlocksIntoRows(column.blocks), [column.blocks])
+  const blockIndexById = useMemo(() => {
+    const map = new Map<string, number>()
+    column.blocks.forEach((block, idx) => map.set(block.id, idx))
+    return map
+  }, [column.blocks])
+  const rowRefs = useRef<Record<string, HTMLDivElement | null>>({})
+
+  const startResize = (row: BlockRow, idx: number, e: React.MouseEvent) => {
+    const a = row.blocks[idx]
+    const b = row.blocks[idx + 1]
+    if (!a || !b) return
+
+    const rowEl = rowRefs.current[row.id]
+    if (!rowEl) return
+    const widthPx = rowEl.clientWidth
+    if (widthPx <= 0) return
+
+    e.preventDefault()
+    e.stopPropagation()
+
+    const startX = e.clientX
+    const startA = a.rowWidth ?? 50
+    const startB = b.rowWidth ?? 50
+    const total = startA + startB
+
+    let rafId: number | null = null
+    let pendingA = startA
+    let pendingB = startB
+
+    const flush = () => {
+      updateBlock(section.id, column.id, a.id, { rowWidth: pendingA } as Partial<CanvasBlock>)
+      updateBlock(section.id, column.id, b.id, { rowWidth: pendingB } as Partial<CanvasBlock>)
+      rafId = null
+    }
+
+    const onMove = (ev: MouseEvent) => {
+      const deltaPct = ((ev.clientX - startX) / widthPx) * 100
+      let nextA = startA + deltaPct
+      nextA = Math.max(20, Math.min(total - 20, nextA))
+      const nextB = total - nextA
+
+      pendingA = nextA
+      pendingB = nextB
+      if (rafId === null) {
+        rafId = window.requestAnimationFrame(flush)
+      }
+    }
+
+    const onUp = () => {
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId)
+        rafId = null
+      }
+      flush()
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
   if (isPreview) {
     return (
       <div style={colStyle}>
-        {column.blocks.map((block, idx) => (
-          <BlockRenderer
-            key={block.id}
-            block={block}
-            style={doc.style}
-            sectionId={section.id}
-            columnId={column.id}
-            isFirst={idx === 0}
-            isLast={idx === column.blocks.length - 1}
-            isPreview
-          />
-        ))}
+        {rows.map((row) => {
+          if (row.blocks.length === 1) {
+            const block = row.blocks[0]
+            const idx = blockIndexById.get(block.id) ?? 0
+            return (
+              <BlockRenderer
+                key={block.id}
+                block={block}
+                style={doc.style}
+                sectionId={section.id}
+                columnId={column.id}
+                isFirst={idx === 0}
+                isLast={idx === column.blocks.length - 1}
+                isPreview
+              />
+            )
+          }
+
+          return (
+            <div key={row.id} className="flex items-stretch gap-3">
+              {row.blocks.map((block) => (
+                <div key={block.id} style={{ flex: `0 0 ${Math.max(20, block.rowWidth ?? 100)}%`, minWidth: 0 }}>
+                  <BlockRenderer
+                    block={block}
+                    style={doc.style}
+                    sectionId={section.id}
+                    columnId={column.id}
+                    isPreview
+                  />
+                </div>
+              ))}
+            </div>
+          )
+        })}
       </div>
     )
   }
@@ -189,18 +354,55 @@ function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeB
         isDropTarget && 'rounded-sm outline outline-2 outline-dashed outline-[var(--color-canvas-dropzone-border)] outline-offset-2 bg-[var(--color-canvas-dropzone)]',
       )}
     >
-      <SortableContext items={column.blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-        {column.blocks.map((block, idx) => (
-          <SortableBlockItem
-            key={block.id}
-            block={block}
-            section={section}
-            column={column}
-            doc={doc}
-            index={idx}
-            isPreview={false}
-          />
-        ))}
+      <SortableContext items={column.blocks.map((b) => b.id)} strategy={rectSortingStrategy}>
+        {rows.map((row) => {
+          if (row.blocks.length === 1) {
+            const block = row.blocks[0]
+            const idx = blockIndexById.get(block.id) ?? 0
+            return (
+              <SortableBlockItem
+                key={block.id}
+                block={block}
+                section={section}
+                column={column}
+                doc={doc}
+                index={idx}
+                isPreview={false}
+                activeBlockId={activeBlockId}
+              />
+            )
+          }
+
+          return (
+            <div key={row.id} className="flex items-stretch gap-3" ref={(node) => { rowRefs.current[row.id] = node }}>
+              {row.blocks.map((block, i) => {
+                const idx = blockIndexById.get(block.id) ?? 0
+                return (
+                  <div key={block.id} className="relative" style={{ flex: `0 0 ${Math.max(20, block.rowWidth ?? 100)}%`, minWidth: 0 }}>
+                    <SortableBlockItem
+                      block={block}
+                      section={section}
+                      column={column}
+                      doc={doc}
+                      index={idx}
+                      isPreview={false}
+                      activeBlockId={activeBlockId}
+                    />
+
+                    {i < row.blocks.length - 1 && (
+                      <button
+                        type="button"
+                        className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize z-30 bg-transparent hover:bg-primary/20"
+                        title="Drag to resize blocks"
+                        onMouseDown={(ev) => startResize(row, i, ev)}
+                      />
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )
+        })}
       </SortableContext>
 
       {column.blocks.length === 0 && (
@@ -302,6 +504,7 @@ export function CanvasPreview({ doc, isPreview = false }: Props) {
     setEditingBlock,
     reorderBlocks,
     transferBlock,
+    updateBlock,
   } = useCanvasStore()
 
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null)
@@ -337,6 +540,52 @@ export function CanvasPreview({ doc, isPreview = false }: Props) {
     const fromData = event.active.data.current as DragData | undefined
     const overData = event.over?.data.current as DragData | undefined
     if (!fromData || fromData.type !== 'block') return
+
+    if (overData?.type === 'side-dropzone' && overData.targetBlockId && overData.side) {
+      const toSectionId = overData.sectionId
+      const toColumnId = overData.columnId
+      const targetBlockId = overData.targetBlockId
+
+      const toSection = doc.sections.find((s) => s.id === toSectionId)
+      const toColumn = toSection?.columns.find((c) => c.id === toColumnId)
+      if (!toColumn) return
+
+      const targetIdx = toColumn.blocks.findIndex((b) => b.id === targetBlockId)
+      if (targetIdx === -1) return
+
+      const insertIdx = overData.side === 'left' ? targetIdx : targetIdx + 1
+      transferBlock(fromData.sectionId, fromData.columnId, activeId, toSectionId, toColumnId, insertIdx)
+
+      const targetBlock = toColumn.blocks[targetIdx]
+      if (!targetBlock) return
+      const groupId = targetBlock.rowId?.trim() || `row-${targetBlock.id}`
+
+      if (!targetBlock.rowId) {
+        updateBlock(toSectionId, toColumnId, targetBlock.id, { rowId: groupId, rowWidth: 50 } as Partial<CanvasBlock>)
+      }
+
+      window.requestAnimationFrame(() => {
+        updateBlock(toSectionId, toColumnId, activeId, { rowId: groupId } as Partial<CanvasBlock>)
+
+        const latest = useCanvasStore.getState().doc
+        const latestCol = latest?.sections.find((s) => s.id === toSectionId)?.columns.find((c) => c.id === toColumnId)
+        if (!latestCol) return
+        const rowBlocks = latestCol.blocks.filter((b) => (b.rowId?.trim() || '') === groupId)
+        if (rowBlocks.length <= 1) {
+          updateBlock(toSectionId, toColumnId, activeId, { rowWidth: 50 } as Partial<CanvasBlock>)
+          return
+        }
+        const equal = Math.max(20, Math.floor(100 / rowBlocks.length))
+        rowBlocks.forEach((b, i) => {
+          const width = i === rowBlocks.length - 1 ? Math.max(20, 100 - equal * (rowBlocks.length - 1)) : equal
+          if (Math.abs((b.rowWidth ?? 100) - width) > 0.5) {
+            updateBlock(toSectionId, toColumnId, b.id, { rowWidth: width } as Partial<CanvasBlock>)
+          }
+        })
+      })
+
+      return
+    }
 
     const fromSectionId = fromData.sectionId
     const fromColumnId = fromData.columnId
@@ -444,7 +693,12 @@ export function CanvasPreview({ doc, isPreview = false }: Props) {
         boxShadow: 'none',
       }}
       onClick={() => {
-        if (!isPreview) selectBlock(null, null, null)
+        if (isPreview) return
+        const activeEl = document.activeElement as HTMLElement | null
+        if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.getAttribute('contenteditable') === 'true')) {
+          return
+        }
+        selectBlock(null, null, null)
       }}
     >
       {doc.sections.filter((s) => !s.hidden).map((section) => (

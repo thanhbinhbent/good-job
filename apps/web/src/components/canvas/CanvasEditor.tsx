@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { useCanvasStore } from '@/stores/canvas.store'
 import { contentToCanvas } from './presets'
 import { CanvasPreview } from './CanvasPreview'
@@ -28,6 +28,7 @@ interface Props {
 type LeftTab = 'sections' | 'style'
 
 export function CanvasEditor({
+  documentId,
   documentType,
   rawContent,
   currentTemplateId,
@@ -41,18 +42,27 @@ export function CanvasEditor({
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightCollapsed, setRightCollapsed] = useState(false)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const lastIncomingSnapshotRef = useRef<string | null>(null)
 
-  // Init canvas from existing canvas doc or convert from legacy content
-  useEffect(() => {
+  const incomingCanvas = useMemo<CanvasDocument>(() => {
     if (initialCanvas && initialCanvas.version === 1) {
-      load(initialCanvas)
-    } else {
-      const canvas = contentToCanvas(documentType, rawContent, currentTemplateId)
-      load(canvas)
+      return initialCanvas
     }
-    // only re-init if doc id changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [documentType])
+    return contentToCanvas(documentType, rawContent, currentTemplateId)
+  }, [initialCanvas, documentType, rawContent, currentTemplateId])
+
+  const incomingSnapshot = useMemo(() => {
+    return JSON.stringify(incomingCanvas)
+  }, [incomingCanvas])
+
+  // Sync incoming server/doc data into local canvas store safely.
+  // Critical: do not reload while local edits are dirty, otherwise focused inputs lose focus.
+  useEffect(() => {
+    if (isDirty) return
+    if (lastIncomingSnapshotRef.current === incomingSnapshot) return
+    load(incomingCanvas)
+    lastIncomingSnapshotRef.current = incomingSnapshot
+  }, [isDirty, incomingSnapshot, incomingCanvas, load])
 
   // Auto-save 1.5s after last change
   const handleSave = useCallback(async () => {

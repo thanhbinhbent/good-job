@@ -31,6 +31,7 @@ function DocumentEditorPage() {
   const updateDoc = useUpdateDocument(documentId)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [canvasResetToken, setCanvasResetToken] = useState(0)
   const [templateOpen, setTemplateOpen] = useState(false)
   const [templateMode, setTemplateMode] = useState<'keep' | 'clear'>('clear')
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
@@ -116,6 +117,7 @@ function DocumentEditorPage() {
         templateId,
         content: nextCanvas as unknown as Record<string, unknown>,
       })
+      setCanvasResetToken((n) => n + 1)
       setTemplateOpen(false)
     } finally {
       setIsSaving(false)
@@ -208,6 +210,7 @@ function DocumentEditorPage() {
       {/* Canvas editor — full remaining height */}
       <div className="flex-1 min-h-0">
         <CanvasEditor
+          key={`${doc.id}-${canvasResetToken}`}
           documentId={doc.id}
           documentType={doc.type as 'resume' | 'portfolio' | 'cover_letter'}
           rawContent={rawContent}

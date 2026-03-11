@@ -7,7 +7,10 @@ export function useDocuments() {
   return useQuery({
     queryKey: queryKeys.documents.all,
     queryFn: () => documentsApi.list(),
-    select: (res) => res.data,
+    select: (res) =>
+      [...res.data].sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+      ),
   });
 }
 

@@ -45,12 +45,21 @@ function NumInput({ value, onChange, min = 0, max = 999, step = 1 }: {
   )
 }
 
+function toColorInputHex(hex?: string): string {
+  const raw = (hex ?? '').trim()
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw
+  if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+    return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`
+  }
+  return '#000000'
+}
+
 function ColorInput({ value, onChange }: { value: CanvasColor; onChange: (c: CanvasColor) => void }) {
   return (
     <div className="grid grid-cols-1 gap-2 min-w-0">
       <div className="grid grid-cols-[28px_minmax(0,1fr)] items-center gap-2 min-w-0">
         <input
-          type="color" value={value.hex} className="w-7 h-7 rounded border border-border cursor-pointer p-0"
+          type="color" value={toColorInputHex(value.hex)} className="w-7 h-7 rounded border border-border cursor-pointer p-0"
           onChange={(e) => onChange({ ...value, hex: e.target.value })}
         />
         <Input value={value.hex} className="h-8 text-xs font-mono w-full min-w-0"
@@ -137,6 +146,9 @@ export function BlockPropertiesPanel() {
         {block.kind === 'text' && (
           <TextBlockEditor block={block} update={update} />
         )}
+        {block.kind === 'dualText' && (
+          <DualTextBlockEditor block={block} update={update} />
+        )}
         {block.kind === 'date' && (
           <DateBlockEditor block={block} update={update} />
         )}
@@ -166,6 +178,119 @@ export function BlockPropertiesPanel() {
 }
 
 // ── Block-specific editors ─────────────────────────────────────────────────────
+
+function DualTextBlockEditor({ block, update }: { block: import('@binh-tran/shared').DualTextBlock; update: (p: Partial<CanvasBlock>) => void }) {
+  const p = (patch: object) => update(patch as Partial<CanvasBlock>)
+
+  const leftStyle: React.CSSProperties = {
+    fontFamily: block.fontFamily || 'Inter',
+    fontSize: block.fontSize,
+    fontWeight: block.fontWeight,
+    fontStyle: block.fontStyle,
+    color: toRgba(block.color),
+    lineHeight: block.lineHeight,
+    letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
+  }
+
+  const rightStyle: React.CSSProperties = {
+    fontFamily: block.fontFamily || 'Inter',
+    fontSize: block.fontSize,
+    fontWeight: block.rightFontWeight,
+    color: toRgba(block.rightColor),
+    lineHeight: block.lineHeight,
+    letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
+    textAlign: 'right',
+  }
+
+  return (
+    <div className="space-y-3">
+      <Group title="Content">
+        <div className="space-y-2">
+          <Label className="text-[11px] text-muted-foreground">Left</Label>
+          <div
+            className="min-h-[64px] overflow-hidden rounded border border-border bg-background transition-colors focus-within:border-ring/70 [&_.ProseMirror]:!m-0 [&_.ProseMirror]:!p-0 [&_.ProseMirror]:!outline-none"
+            style={leftStyle}
+          >
+            <RichTextSection
+              key={`${block.id}-left`}
+              content={block.leftContent}
+              onSave={(html) => p({ leftContent: html })}
+              isAdmin
+              debounceMs={220}
+              className="!border-0 !rounded-none hover:!border-0 focus:!border-0"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-[11px] text-muted-foreground">Right</Label>
+          <div
+            className="min-h-[52px] overflow-hidden rounded border border-border bg-background transition-colors focus-within:border-ring/70 [&_.ProseMirror]:!m-0 [&_.ProseMirror]:!p-0 [&_.ProseMirror]:!outline-none"
+            style={rightStyle}
+          >
+            <RichTextSection
+              key={`${block.id}-right`}
+              content={block.rightContent}
+              onSave={(html) => p({ rightContent: html })}
+              isAdmin
+              debounceMs={220}
+              className="!border-0 !rounded-none hover:!border-0 focus:!border-0"
+            />
+          </div>
+        </div>
+      </Group>
+
+      <Group title="Typography">
+        <Row label="Font">
+          <Select value={block.fontFamily || 'Inter'} onValueChange={(v) => p({ fontFamily: v })}>
+            <SelectTrigger className="h-8 text-xs w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {FONT_FAMILIES.map((f) => <SelectItem key={f} value={f} style={{ fontFamily: f }}>{f}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
+        <Row label="Size"><NumInput value={block.fontSize} min={8} max={72} onChange={(v) => p({ fontSize: v })} /></Row>
+        <Row label="Left W.">
+          <Select value={block.fontWeight} onValueChange={(v) => p({ fontWeight: v })}>
+            <SelectTrigger className="h-8 text-xs w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(['300','400','500','600','700','800'] as const).map((w) => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
+        <Row label="Right W.">
+          <Select value={block.rightFontWeight} onValueChange={(v) => p({ rightFontWeight: v })}>
+            <SelectTrigger className="h-8 text-xs w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(['300','400','500','600','700','800'] as const).map((w) => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
+        <Row label="Style">
+          <Select value={block.fontStyle} onValueChange={(v) => p({ fontStyle: v })}>
+            <SelectTrigger className="h-8 text-xs w-full"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="normal">Normal</SelectItem>
+              <SelectItem value="italic">Italic</SelectItem>
+            </SelectContent>
+          </Select>
+        </Row>
+      </Group>
+
+      <Group title="Layout">
+        <Row label="Line H."><NumInput value={block.lineHeight} min={0.8} max={4} step={0.05} onChange={(v) => p({ lineHeight: v })} /></Row>
+        <Row label="Spacing"><NumInput value={block.letterSpacing} min={-0.1} max={0.5} step={0.01} onChange={(v) => p({ letterSpacing: v })} /></Row>
+        <Row label="Gap"><NumInput value={block.gap} min={0} max={80} onChange={(v) => p({ gap: v })} /></Row>
+        <Row label="Margin↓"><NumInput value={block.marginBottom} min={0} max={80} onChange={(v) => p({ marginBottom: v })} /></Row>
+      </Group>
+
+      <Group title="Color">
+        <Row label="Left"><ColorInput value={block.color} onChange={(c) => p({ color: c })} /></Row>
+        <Row label="Right"><ColorInput value={block.rightColor} onChange={(c) => p({ rightColor: c })} /></Row>
+      </Group>
+    </div>
+  )
+}
 
 function TextBlockEditor({ block, update }: { block: import('@binh-tran/shared').TextBlock; update: (p: Partial<CanvasBlock>) => void }) {
   const p = (patch: object) => update(patch as Partial<CanvasBlock>)

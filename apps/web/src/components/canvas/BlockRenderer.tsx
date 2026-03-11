@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useReducer, useRef } from 'react'
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
 import type { CanvasBlock, CanvasStyle, TextBlock } from '@binh-tran/shared'
 import { FONT_FAMILIES } from '@binh-tran/shared'
 import { useCanvasStore } from '@/stores/canvas.store'
@@ -60,6 +59,15 @@ const ALIGN_OPTIONS = [
   { value: 'right' as const,   Icon: AlignRight },
   { value: 'justify' as const, Icon: AlignJustify },
 ]
+
+function toColorInputHex(hex?: string): string {
+  const raw = (hex ?? '').trim()
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw
+  if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+    return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`
+  }
+  return '#000000'
+}
 
 function RichFormatBar({ editor, block, update, onMoveUp, onMoveDown, onDuplicate, onDelete }: RichFormatBarProps) {
   const prevent = (e: React.MouseEvent) => e.preventDefault()
@@ -140,7 +148,7 @@ function RichFormatBar({ editor, block, update, onMoveUp, onMoveDown, onDuplicat
       {/* ── Text color ───────────────────────────────────── */}
       <label className="cursor-pointer shrink-0" title="Text color" onMouseDown={prevent}>
         <input
-          type="color" value={block.color.hex}
+          type="color" value={toColorInputHex(block.color.hex)}
           className="w-5 h-5 min-h-5 max-h-5 box-border rounded cursor-pointer p-0 border border-border bg-background focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 shadow-none"
           style={{ WebkitAppearance: 'none' } as React.CSSProperties}
           onChange={(e) => { update({ color: { ...block.color, hex: e.target.value } }); refocus() }}
@@ -194,7 +202,6 @@ interface InlineEditorProps {
 function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveDown, onDuplicate, onDelete, onClose }: InlineEditorProps) {
   const { updateBlock } = useCanvasStore()
   const containerRef = useRef<HTMLDivElement>(null)
-  const blurTimerRef = useRef<number | null>(null)
   const syncTimerRef = useRef<number | null>(null)
   // Prevent double-save by tracking whether we already saved
   const savedRef = useRef(false)
@@ -211,7 +218,7 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
   }, [updateBlock, sectionId, columnId, block.id])
 
   const editor = useEditor({
-    extensions: [StarterKit, Underline],
+    extensions: [StarterKit],
     content: block.content,
     autofocus: 'end',
     editorProps: {
@@ -240,35 +247,18 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
     return () => { editor.off('selectionUpdate', cb); editor.off('transaction', cb) }
   }, [editor])
 
-  // Close when focus truly leaves the editor container.
-  // Use deferred check to avoid false blur when interacting with native select/input controls.
-  const clearPendingBlur = useCallback(() => {
-    if (blurTimerRef.current !== null) {
-      window.clearTimeout(blurTimerRef.current)
-      blurTimerRef.current = null
+  // Close only when user clicks outside this editor container.
+  useEffect(() => {
+    const onPointerDown = (e: PointerEvent) => {
+      const root = containerRef.current
+      const target = e.target as Node | null
+      if (!root || !target || root.contains(target)) return
+      if (editor) save(editor.getHTML())
+      onClose()
     }
-  }, [])
-
-  const closeIfOutside = useCallback(() => {
-    const root = containerRef.current
-    const active = document.activeElement
-    if (root && active && root.contains(active)) return
-    if (editor) save(editor.getHTML())
-    onClose()
+    window.addEventListener('pointerdown', onPointerDown, true)
+    return () => window.removeEventListener('pointerdown', onPointerDown, true)
   }, [editor, save, onClose])
-
-  const handleContainerBlur = useCallback((e: React.FocusEvent<HTMLDivElement>) => {
-    if (containerRef.current?.contains(e.relatedTarget as Node)) return
-    clearPendingBlur()
-    blurTimerRef.current = window.setTimeout(() => {
-      blurTimerRef.current = null
-      closeIfOutside()
-    }, 80)
-  }, [clearPendingBlur, closeIfOutside])
-
-  const handleContainerFocus = useCallback(() => {
-    clearPendingBlur()
-  }, [clearPendingBlur])
 
   // Escape key
   useEffect(() => {
@@ -284,12 +274,11 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
   }, [editor, save, onClose])
 
   useEffect(() => () => {
-    clearPendingBlur()
     if (syncTimerRef.current !== null) {
       window.clearTimeout(syncTimerRef.current)
       syncTimerRef.current = null
     }
-  }, [clearPendingBlur])
+  }, [])
 
   // Block-level styles applied to wrapper → editor inherits via CSS cascade
   const wrapStyle: React.CSSProperties = {
@@ -313,8 +302,6 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
     <div
       ref={containerRef}
       tabIndex={-1}
-      onFocus={handleContainerFocus}
-      onBlur={handleContainerBlur}
       className="outline-none"
       style={{
         position: 'absolute',
@@ -469,6 +456,43 @@ export function BlockRenderer({
         textAlign: block.align, marginBottom: block.marginBottom,
         fontFamily: style.fontFamily,
       }}>{label || 'Jan 2020 – Present'}</div>
+    )
+  }
+
+  if (block.kind === 'dualText') {
+    return wrap(
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          gap: block.gap,
+          marginBottom: block.marginBottom,
+          fontFamily: block.fontFamily || style.fontFamily,
+          fontSize: block.fontSize,
+          lineHeight: block.lineHeight,
+          letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
+        }}
+      >
+        <div
+          style={{
+            fontWeight: block.fontWeight,
+            fontStyle: block.fontStyle,
+            color: toRgba(block.color),
+            minWidth: 0,
+          }}
+          dangerouslySetInnerHTML={{ __html: block.leftContent || '<strong>Title</strong>' }}
+        />
+        <div
+          style={{
+            fontWeight: block.rightFontWeight,
+            color: toRgba(block.rightColor),
+            whiteSpace: 'nowrap',
+            textAlign: 'right',
+          }}
+          dangerouslySetInnerHTML={{ __html: block.rightContent || 'Jan 2020 – Present' }}
+        />
+      </div>,
     )
   }
 

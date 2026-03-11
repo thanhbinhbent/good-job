@@ -6,7 +6,7 @@ import {
   SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useCanvasStore, makeTextBlock, makeDateBlock, makeTagBlock, makeDividerBlock, makeSpacerBlock, makeProgressBlock, makeImageBlock, makeLinkBlock } from '@/stores/canvas.store'
+import { useCanvasStore, makeTextBlock, makeDateBlock, makeTagBlock, makeDividerBlock, makeSpacerBlock, makeProgressBlock, makeImageBlock, makeLinkBlock, makeDualTextBlock } from '@/stores/canvas.store'
 import type { CanvasBlock, CanvasBlockKind, CanvasSection, CanvasColumn } from '@binh-tran/shared'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label'
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Eye, EyeOff,
   Type, Calendar, Tag, BarChart2, Minus, Image, Link2, Space, GripVertical,
+  Rows3,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -26,6 +27,7 @@ import { cn } from '@/lib/utils'
 
 const BLOCK_KINDS: { kind: CanvasBlockKind; label: string; icon: React.FC<{ className?: string }> }[] = [
   { kind: 'text', label: 'Text', icon: Type },
+  { kind: 'dualText', label: 'Title + Date Row', icon: Rows3 },
   { kind: 'date', label: 'Date Range', icon: Calendar },
   { kind: 'tags', label: 'Tags / Skills', icon: Tag },
   { kind: 'progress', label: 'Skill Bar', icon: BarChart2 },
@@ -35,8 +37,18 @@ const BLOCK_KINDS: { kind: CanvasBlockKind; label: string; icon: React.FC<{ clas
   { kind: 'spacer', label: 'Spacer', icon: Space },
 ]
 
+function toColorInputHex(hex?: string): string {
+  const raw = (hex ?? '').trim()
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw
+  if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+    return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`
+  }
+  return '#ffffff'
+}
+
 function makeBlock(kind: CanvasBlockKind): CanvasBlock {
   if (kind === 'text') return makeTextBlock()
+  if (kind === 'dualText') return makeDualTextBlock()
   if (kind === 'date') return makeDateBlock()
   if (kind === 'tags') return makeTagBlock()
   if (kind === 'divider') return makeDividerBlock()
@@ -239,7 +251,7 @@ function SortableSectionRow({ sec, idx, total }: { sec: CanvasSection; idx: numb
             <Label className="text-[11px] text-muted-foreground uppercase tracking-widest">Background</Label>
             <div className="flex items-center gap-2">
               <input type="color"
-                value={sec.background?.hex ?? '#ffffff'}
+                value={toColorInputHex(sec.background?.hex ?? '#ffffff')}
                 className="w-7 h-7 rounded border border-border cursor-pointer p-0"
                 onChange={(e) => updateSection(sec.id, { background: { hex: e.target.value, opacity: sec.background?.opacity ?? 1 } })}
               />
@@ -347,7 +359,7 @@ function AddBlockMenu({ onAdd }: { onAdd: (k: CanvasBlockKind) => void }) {
 
 function BlockKindIcon({ kind }: { kind: CanvasBlockKind }) {
   const map: Record<CanvasBlockKind, React.FC<{ className?: string }>> = {
-    text: Type, date: Calendar, tags: Tag, progress: BarChart2,
+    text: Type, dualText: Rows3, date: Calendar, tags: Tag, progress: BarChart2,
     divider: Minus, image: Image, link: Link2, spacer: Space,
   }
   const Icon = map[kind] ?? Type
@@ -358,6 +370,11 @@ function blockLabel(block: CanvasBlock): string {
   if (block.kind === 'text') {
     const stripped = (block.content ?? '').replace(/<[^>]*>/g, '').slice(0, 32)
     return stripped || '(empty text)'
+  }
+  if (block.kind === 'dualText') {
+    const left = (block.leftContent ?? '').replace(/<[^>]*>/g, '').trim()
+    const right = (block.rightContent ?? '').replace(/<[^>]*>/g, '').trim()
+    return [left || 'Title', right || 'Date'].filter(Boolean).join('  |  ')
   }
   if (block.kind === 'date') return block.startDate || 'Date range'
   if (block.kind === 'tags') return block.items.slice(0, 3).join(', ') || 'Tags'

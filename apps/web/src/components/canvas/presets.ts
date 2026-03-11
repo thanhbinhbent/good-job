@@ -157,7 +157,7 @@ function text(content: string, overrides?: Partial<import('@binh-tran/shared').T
     kind: 'text', id: id(), content,
     fontSize: 14, fontFamily: 'Inter', fontWeight: '400', fontStyle: 'normal',
     color: { hex: '#111111', opacity: 1 }, align: 'left',
-    lineHeight: 1.5, letterSpacing: 0, marginBottom: 4, textTransform: 'none',
+    lineHeight: 1.5, letterSpacing: 0, marginBottom: 4, textTransform: 'none', rowWidth: 100,
     ...overrides,
   }
 }
@@ -174,19 +174,61 @@ function divider(): CanvasBlock {
   return {
     kind: 'divider', id: id(),
     color: { hex: '#d1d5db', opacity: 1 }, thickness: 1, style: 'solid',
-    marginTop: 2, marginBottom: 10,
+    marginTop: 2, marginBottom: 10, rowWidth: 100,
   }
 }
 
 function spacer(h = 12): CanvasBlock {
-  return { kind: 'spacer', id: id(), height: h }
+  return { kind: 'spacer', id: id(), height: h, rowWidth: 100 }
 }
 
 function date(startDate: string, endDate?: string, current = false): CanvasBlock {
   return {
     kind: 'date', id: id(), startDate, endDate, current,
     format: 'MMM YYYY', fontSize: 11, color: { hex: '#6b7280', opacity: 1 },
-    align: 'right', marginBottom: 0,
+    align: 'right', marginBottom: 0, rowWidth: 100,
+  }
+}
+
+function fmtMonth(ym?: string): string {
+  if (!ym) return ''
+  const [year, month] = ym.split('-')
+  if (!year || !month) return ym
+  const m = Number(month)
+  if (!Number.isFinite(m) || m < 1 || m > 12) return ym
+  const names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+  return `${names[m - 1]} ${year}`
+}
+
+function dateRangeText(startDate: string, endDate?: string, current = false): string {
+  const start = fmtMonth(startDate) || startDate
+  const end = current ? 'Present' : (fmtMonth(endDate) || endDate || '')
+  return end ? `${start} – ${end}` : start
+}
+
+function rowWithRightDate(
+  leftHtml: string,
+  rightText: string,
+  overrides?: Partial<import('@binh-tran/shared').DualTextBlock>,
+): CanvasBlock {
+  return {
+    kind: 'dualText',
+    id: id(),
+    leftContent: leftHtml,
+    rightContent: rightText,
+    fontSize: 13,
+    fontFamily: 'Inter',
+    fontWeight: '700',
+    fontStyle: 'normal',
+    lineHeight: 1.4,
+    letterSpacing: 0,
+    color: { hex: '#111111', opacity: 1 },
+    rightFontWeight: '400',
+    rightColor: { hex: '#6b7280', opacity: 1 },
+    gap: 12,
+    marginBottom: 0,
+    rowWidth: 100,
+    ...overrides,
   }
 }
 
@@ -195,7 +237,7 @@ function tags(items: string[]): CanvasBlock {
     kind: 'tags', id: id(), items,
     chipBackground: { hex: '#f1f5f9', opacity: 1 },
     chipColor: { hex: '#334155', opacity: 1 },
-    chipRadius: 4, fontSize: 11, gap: 6, marginBottom: 8,
+    chipRadius: 4, fontSize: 11, gap: 6, marginBottom: 8, rowWidth: 100,
   }
 }
 
@@ -237,8 +279,8 @@ export function harvardResumePreset(content: ResumeContent): CanvasDocument {
   // Header
   sections.push(section('Header', [col([
     text(p.name || 'Your Name', { fontSize: 26, fontWeight: '700', align: 'center', textTransform: 'uppercase', letterSpacing: 0.05, marginBottom: 4 }),
-    p.title ? text(p.title, { fontSize: 13, align: 'center', color: { hex: '#555', opacity: 1 }, marginBottom: 6 }) : spacer(0),
-    text(contacts.join('  ·  '), { fontSize: 11, align: 'center', color: { hex: '#555', opacity: 1 }, marginBottom: 0 }),
+    p.title ? text(p.title, { fontSize: 13, align: 'center', color: { hex: '#555555', opacity: 1 }, marginBottom: 6 }) : spacer(0),
+    text(contacts.join('  ·  '), { fontSize: 11, align: 'center', color: { hex: '#555555', opacity: 1 }, marginBottom: 0 }),
   ])], { paddingY: 24, paddingX: 40 }))
 
   // Summary
@@ -256,10 +298,9 @@ export function harvardResumePreset(content: ResumeContent): CanvasDocument {
     content.experience.forEach((exp, i) => {
       if (i > 0) blocks.push(spacer(8))
       blocks.push(
-        text(`<strong>${exp.company}</strong>`, { fontSize: 13, fontWeight: '700', marginBottom: 0 }),
-        text(exp.role, { fontSize: 12, fontStyle: 'italic', color: { hex: '#444', opacity: 1 }, marginBottom: 2 }),
-        date(exp.startDate, exp.endDate, exp.current),
-        exp.description ? text(exp.description, { fontSize: 12, lineHeight: 1.55, color: { hex: '#333', opacity: 1 } }) : spacer(0),
+        rowWithRightDate(`<strong>${exp.company}</strong>`, dateRangeText(exp.startDate, exp.endDate, exp.current), { fontFamily: 'Georgia' }),
+        text(exp.role, { fontSize: 12, fontStyle: 'italic', color: { hex: '#444444', opacity: 1 }, marginBottom: 2 }),
+        exp.description ? text(exp.description, { fontSize: 12, lineHeight: 1.55, color: { hex: '#333333', opacity: 1 } }) : spacer(0),
       )
     })
     sections.push(section('Experience', [col(blocks)]))
@@ -271,9 +312,8 @@ export function harvardResumePreset(content: ResumeContent): CanvasDocument {
     content.education.forEach((edu, i) => {
       if (i > 0) blocks.push(spacer(8))
       blocks.push(
-        text(`<strong>${edu.institution}</strong>`, { fontSize: 13, fontWeight: '700', marginBottom: 0 }),
-        text(`${edu.degree}${edu.field ? ` in ${edu.field}` : ''}`, { fontSize: 12, fontStyle: 'italic', color: { hex: '#444', opacity: 1 } }),
-        date(edu.startDate, edu.endDate),
+        rowWithRightDate(`<strong>${edu.institution}</strong>`, dateRangeText(edu.startDate, edu.endDate), { fontFamily: 'Georgia' }),
+        text(`${edu.degree}${edu.field ? ` in ${edu.field}` : ''}`, { fontSize: 12, fontStyle: 'italic', color: { hex: '#444444', opacity: 1 } }),
       )
     })
     sections.push(section('Education', [col(blocks)]))
@@ -315,7 +355,7 @@ export function modernResumePreset(content: ResumeContent): CanvasDocument {
 
   // Header row (full-width dark)
   sections.push(section('Header', [col([
-    text(p.name || 'Your Name', { fontSize: 26, fontWeight: '700', color: { hex: '#fff', opacity: 1 }, marginBottom: 4 }),
+    text(p.name || 'Your Name', { fontSize: 26, fontWeight: '700', color: { hex: '#ffffff', opacity: 1 }, marginBottom: 4 }),
     text(p.title || '', { fontSize: 14, color: { hex: '#93c5fd', opacity: 1 } }),
   ])], { paddingY: 28, paddingX: 40, background: { hex: '#1e3a5f', opacity: 1 } }))
 
@@ -347,9 +387,8 @@ export function modernResumePreset(content: ResumeContent): CanvasDocument {
     content.experience.forEach((exp, i) => {
       if (i > 0) mainBlocks.push(spacer(10))
       mainBlocks.push(
-        text(`<strong>${exp.role}</strong>`, { fontSize: 14, fontWeight: '700', marginBottom: 0 }),
+        rowWithRightDate(`<strong>${exp.role}</strong>`, dateRangeText(exp.startDate, exp.endDate, exp.current), { fontSize: 14 }),
         text(exp.company + (exp.location ? ` · ${exp.location}` : ''), { fontSize: 12, color: { hex: '#2563eb', opacity: 1 }, marginBottom: 2 }),
-        date(exp.startDate, exp.endDate, exp.current),
         exp.description ? text(exp.description, { fontSize: 12, lineHeight: 1.55 }) : spacer(0),
       )
     })
@@ -359,9 +398,8 @@ export function modernResumePreset(content: ResumeContent): CanvasDocument {
     content.education.forEach((edu, i) => {
       if (i > 0) mainBlocks.push(spacer(8))
       mainBlocks.push(
-        text(`<strong>${edu.degree}${edu.field ? ` in ${edu.field}` : ''}</strong>`, { fontSize: 13, fontWeight: '700', marginBottom: 0 }),
+        rowWithRightDate(`<strong>${edu.degree}${edu.field ? ` in ${edu.field}` : ''}</strong>`, dateRangeText(edu.startDate, edu.endDate)),
         text(edu.institution, { fontSize: 12, color: { hex: '#6b7280', opacity: 1 } }),
-        date(edu.startDate, edu.endDate),
       )
     })
   }
@@ -485,16 +523,16 @@ export function coverLetterPreset(content: CoverLetterContent): CanvasDocument {
     sections: [
       section('Sender', [col([
         text(`<strong>${h.senderName}</strong>`, { fontSize: 15, fontWeight: '700' }),
-        text(h.senderTitle, { fontSize: 12, color: { hex: '#555', opacity: 1 } }),
+        text(h.senderTitle, { fontSize: 12, color: { hex: '#555555', opacity: 1 } }),
         text(h.senderEmail, { fontSize: 12 }),
         h.senderPhone ? text(h.senderPhone, { fontSize: 12 }) : spacer(0),
         spacer(8),
-        text(h.date, { fontSize: 12, color: { hex: '#888', opacity: 1 } }),
+        text(h.date, { fontSize: 12, color: { hex: '#888888', opacity: 1 } }),
       ])], { paddingY: 28 }),
       section('Recipient', [col([
         h.recipientName ? text(h.recipientName + (h.recipientTitle ? `, ${h.recipientTitle}` : ''), { fontSize: 13 }) : spacer(0),
         text(h.companyName, { fontSize: 13, fontWeight: '600' }),
-        h.companyAddress ? text(h.companyAddress, { fontSize: 12, color: { hex: '#555', opacity: 1 } }) : spacer(0),
+        h.companyAddress ? text(h.companyAddress, { fontSize: 12, color: { hex: '#555555', opacity: 1 } }) : spacer(0),
         content.jobTitle ? text(`Re: ${content.jobTitle}`, { fontSize: 13, fontWeight: '600', marginBottom: 0, color: { hex: '#2563eb', opacity: 1 } }) : spacer(0),
       ])]),
       section('Body', [col([
@@ -527,7 +565,7 @@ export function portfolioPreset(content: PortfolioContent): CanvasDocument {
   const sections: CanvasSection[] = []
 
   sections.push(section('Hero', [col([
-    text(content.hero.headline || 'Your Name', { fontSize: 28, fontWeight: '700', color: { hex: '#fff', opacity: 1 } }),
+    text(content.hero.headline || 'Your Name', { fontSize: 28, fontWeight: '700', color: { hex: '#ffffff', opacity: 1 } }),
     content.hero.subheadline ? text(content.hero.subheadline, { fontSize: 15, color: { hex: '#93c5fd', opacity: 1 } }) : spacer(0),
   ])], { background: { hex: '#1e3a5f', opacity: 1 }, paddingY: 40 }))
 

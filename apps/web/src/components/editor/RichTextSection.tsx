@@ -57,7 +57,9 @@ export function RichTextSection({
   });
 
   useEffect(() => {
-    if (editor && content !== editor.getHTML()) {
+    if (!editor) return;
+    if (editor.isFocused) return;
+    if (content !== editor.getHTML()) {
       editor.commands.setContent(content || '');
     }
   }, [content, editor]);

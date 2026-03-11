@@ -269,6 +269,11 @@ export const canvasBorderSchema = z.object({
 })
 export type CanvasBorder = z.infer<typeof canvasBorderSchema>
 
+const blockLayoutSchema = z.object({
+  rowId: z.string().trim().min(1).optional(),
+  rowWidth: z.number().min(20).max(100).default(100),
+})
+
 // ── Block types — each block = one atomic piece of content ──────────────────
 
 // Text block (heading / paragraph / label)
@@ -286,7 +291,7 @@ export const textBlockSchema = z.object({
   letterSpacing: z.number().default(0),   // em
   marginBottom: z.number().default(4),    // px
   textTransform: z.enum(['none','uppercase','lowercase','capitalize']).default('none'),
-})
+}).merge(blockLayoutSchema)
 export type TextBlock = z.infer<typeof textBlockSchema>
 
 // Date range block
@@ -301,7 +306,7 @@ export const dateBlockSchema = z.object({
   color: canvasColorSchema.default({ hex: '#666666', opacity: 1 }),
   align: z.enum(['left','center','right']).default('left'),
   marginBottom: z.number().default(4),
-})
+}).merge(blockLayoutSchema)
 export type DateBlock = z.infer<typeof dateBlockSchema>
 
 // Tag / Badge list block  
@@ -315,7 +320,7 @@ export const tagBlockSchema = z.object({
   fontSize: z.number().default(11),
   gap: z.number().default(6),           // px gap between tags
   marginBottom: z.number().default(8),
-})
+}).merge(blockLayoutSchema)
 export type TagBlock = z.infer<typeof tagBlockSchema>
 
 // Progress/skill bar block
@@ -330,7 +335,7 @@ export const progressBlockSchema = z.object({
   showLabel: z.boolean().default(true),
   showValue: z.boolean().default(false),
   marginBottom: z.number().default(8),
-})
+}).merge(blockLayoutSchema)
 export type ProgressBlock = z.infer<typeof progressBlockSchema>
 
 // Divider block
@@ -342,7 +347,7 @@ export const dividerBlockSchema = z.object({
   style: z.enum(['solid','dashed','dotted']).default('solid'),
   marginTop: z.number().default(8),
   marginBottom: z.number().default(8),
-})
+}).merge(blockLayoutSchema)
 export type DividerBlock = z.infer<typeof dividerBlockSchema>
 
 // Avatar / image block
@@ -355,7 +360,7 @@ export const imageBlockSchema = z.object({
   radius: z.number().default(50),        // % — 50 = circle
   align: z.enum(['left','center','right']).default('left'),
   marginBottom: z.number().default(12),
-})
+}).merge(blockLayoutSchema)
 export type ImageBlock = z.infer<typeof imageBlockSchema>
 
 // Link block
@@ -368,15 +373,35 @@ export const linkBlockSchema = z.object({
   fontSize: z.number().default(12),
   color: canvasColorSchema.default({ hex: '#2563eb', opacity: 1 }),
   marginBottom: z.number().default(4),
-})
+}).merge(blockLayoutSchema)
 export type LinkBlock = z.infer<typeof linkBlockSchema>
+
+// Dual text row block (left + right on the same line)
+export const dualTextBlockSchema = z.object({
+  kind: z.literal('dualText'),
+  id: z.string(),
+  leftContent: z.string().default(''),
+  rightContent: z.string().default(''),
+  fontSize: z.number().default(13),
+  fontFamily: z.string().optional(),
+  fontWeight: z.enum(['300','400','500','600','700','800']).default('600'),
+  fontStyle: z.enum(['normal','italic']).default('normal'),
+  lineHeight: z.number().default(1.4),
+  letterSpacing: z.number().default(0),
+  color: canvasColorSchema.default({ hex: '#111111', opacity: 1 }),
+  rightFontWeight: z.enum(['300','400','500','600','700','800']).default('400'),
+  rightColor: canvasColorSchema.default({ hex: '#6b7280', opacity: 1 }),
+  gap: z.number().default(12),
+  marginBottom: z.number().default(4),
+}).merge(blockLayoutSchema)
+export type DualTextBlock = z.infer<typeof dualTextBlockSchema>
 
 // Spacer block
 export const spacerBlockSchema = z.object({
   kind: z.literal('spacer'),
   id: z.string(),
   height: z.number().default(16),        // px
-})
+}).merge(blockLayoutSchema)
 export type SpacerBlock = z.infer<typeof spacerBlockSchema>
 
 // Union of all block types
@@ -388,6 +413,7 @@ export const canvasBlockSchema = z.discriminatedUnion('kind', [
   dividerBlockSchema,
   imageBlockSchema,
   linkBlockSchema,
+  dualTextBlockSchema,
   spacerBlockSchema,
 ])
 export type CanvasBlock = z.infer<typeof canvasBlockSchema>

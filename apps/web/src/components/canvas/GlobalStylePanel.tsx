@@ -16,6 +16,15 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
   )
 }
 
+function toColorInputHex(hex?: string): string {
+  const raw = (hex ?? '').trim()
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw
+  if (/^#[0-9a-fA-F]{3}$/.test(raw)) {
+    return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`
+  }
+  return '#000000'
+}
+
 function ColorSwatch({ value, onChange }: { value: CanvasColor; onChange: (c: CanvasColor) => void }) {
   const alpha = Math.round((value.opacity ?? 1) * 100)
   return (
@@ -23,7 +32,7 @@ function ColorSwatch({ value, onChange }: { value: CanvasColor; onChange: (c: Ca
       <div className="flex items-center gap-1.5 min-w-0">
         <input
           type="color"
-          value={value.hex}
+          value={toColorInputHex(value.hex)}
           className="w-7 h-7 rounded border border-border cursor-pointer p-0"
           onChange={(e) => onChange({ ...value, hex: e.target.value })}
         />
@@ -122,7 +131,7 @@ export function GlobalStylePanel() {
         </Row>
         <Row label="Base size">
           <div className="flex items-center gap-2">
-            <Slider value={[style.baseFontSize]} min={8} max={20} step={0.5} className="flex-1"
+            <Slider value={[style.baseFontSize]} min={9} max={20} step={1} className="flex-1"
               onValueChange={([v]) => s({ baseFontSize: v })} />
             <span className="w-12 text-right font-mono text-[11px]">{style.baseFontSize}px</span>
           </div>

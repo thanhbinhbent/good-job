@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useDocuments, useCreateDocument, useDeleteDocument } from '@/hooks/use-documents'
@@ -7,6 +7,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { authApi } from '@/lib/api'
 import { queryKeys } from '@/lib/query'
 import { TemplateGallery } from '@/components/canvas/TemplateGallery'
+import { contentToCanvas, defaultStructuredContent } from '@/components/canvas/presets'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -26,9 +27,9 @@ export const Route = createFileRoute('/admin/')({
 
 const TYPE_ICONS = { resume: FileText, portfolio: Globe, cover_letter: Mail } as const
 const TYPE_LABELS: Record<DocumentType, string> = { resume: 'Resume', portfolio: 'Portfolio', cover_letter: 'Cover Letter' }
-const TYPES: DocumentType[] = ['resume', 'portfolio', 'cover_letter']
 
 function AdminDashboard() {
+  const navigate = useNavigate()
   const isAdmin = useAuthStore((s) => s.isAdmin)
   const { data: documents, isLoading } = useDocuments()
   const createDoc = useCreateDocument()
@@ -64,13 +65,22 @@ function AdminDashboard() {
     setNewTemplateId('')
   }
 
-  const submitCreate = () => {
+  const submitCreate = async () => {
     const templateId = newTemplateId || defaultTemplateId
     if (!newTitle.trim() || !templateId) return
-    createDoc.mutate(
-      { type: newType, title: newTitle.trim(), templateId },
-      { onSuccess: () => setCreateOpen(false) },
-    )
+    const structured = defaultStructuredContent(newType)
+    const initialCanvas = contentToCanvas(newType, structured, templateId)
+    const created = await createDoc.mutateAsync({
+      type: newType,
+      title: newTitle.trim(),
+      templateId,
+      content: initialCanvas as unknown as Record<string, unknown>,
+    })
+    setCreateOpen(false)
+    await navigate({
+      to: '/admin/$documentId',
+      params: { documentId: created.data.id },
+    })
   }
 
   if (!isAdmin) {
@@ -132,7 +142,7 @@ function AdminDashboard() {
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
-              <Button disabled={createDoc.isPending || !newTitle.trim() || !(newTemplateId || defaultTemplateId)} onClick={submitCreate}>
+              <Button disabled={createDoc.isPending || !newTitle.trim() || !(newTemplateId || defaultTemplateId)} onClick={() => void submitCreate()}>
                 {createDoc.isPending ? 'Creating…' : 'Create'}
               </Button>
             </div>
