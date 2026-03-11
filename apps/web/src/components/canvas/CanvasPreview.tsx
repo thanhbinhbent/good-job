@@ -53,7 +53,7 @@ function DragGhost({ block }: { block: CanvasBlock }) {
       : block.kind
 
   return (
-    <div className="max-w-[240px] truncate rounded-md border border-indigo-400/70 bg-slate-900 px-3 py-2 text-[11px] text-slate-100 shadow-2xl opacity-95">
+    <div className="max-w-[240px] truncate rounded-md border border-[var(--color-canvas-dropzone-border)] bg-[var(--color-canvas-toolbar)] px-3 py-2 text-[11px] text-[var(--color-canvas-toolbar-foreground)] shadow-2xl opacity-95">
       {label}
     </div>
   )
@@ -100,7 +100,7 @@ function SortableBlockItem({ block, section, column, doc, index, isPreview }: So
           title="Drag block"
           onMouseDown={(e) => e.stopPropagation()}
         >
-          <GripVertical className="size-3.5 text-slate-400" />
+          <GripVertical className="size-3.5 text-muted-foreground" />
         </div>
       )}
 
@@ -147,8 +147,11 @@ function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeB
     paddingRight: column.paddingX ?? (section.columns.length > 1 ? section.paddingX : 0),
     background: column.background ? toRgba(column.background) : undefined,
     minWidth: 0,
-    paddingInlineStart: !isPreview
-      ? Math.max(column.paddingX ?? (section.columns.length > 1 ? section.paddingX : 0), 20)
+    paddingInlineStart: !isPreview && section.columns.length > 1
+      ? Math.max(column.paddingX ?? section.paddingX, 16)
+      : undefined,
+    paddingInlineEnd: !isPreview && section.columns.length > 1
+      ? Math.max(column.paddingX ?? section.paddingX, 16)
       : undefined,
   }
 
@@ -183,7 +186,7 @@ function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeB
       style={colStyle}
       className={cn(
         'relative transition-all duration-150',
-        isDropTarget && 'rounded-sm outline outline-2 outline-dashed outline-indigo-400/70 outline-offset-2 bg-indigo-500/5',
+        isDropTarget && 'rounded-sm outline outline-2 outline-dashed outline-[var(--color-canvas-dropzone-border)] outline-offset-2 bg-[var(--color-canvas-dropzone)]',
       )}
     >
       <SortableContext items={column.blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
@@ -203,10 +206,10 @@ function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeB
       {column.blocks.length === 0 && (
         <div
           className={cn(
-            'min-h-12 rounded border-2 border-dashed flex items-center justify-center text-[10px] select-none transition-colors',
+            'min-h-12 rounded border border-dashed flex items-center justify-center text-[10px] select-none transition-colors',
             isDropTarget
-              ? 'border-indigo-400/70 text-indigo-300 bg-indigo-500/10'
-              : 'border-indigo-300/20 text-indigo-300/40',
+              ? 'border-[var(--color-canvas-dropzone-border)] text-primary bg-[var(--color-canvas-dropzone)]'
+              : 'border-border/50 text-muted-foreground',
           )}
           onClick={(e) => e.stopPropagation()}
         >
@@ -240,7 +243,7 @@ function SectionRenderer({ section, doc, isPreview, overColumnId, activeBlockId 
       {isSectionActive && !selectedBlockId && (
         <div
           style={{ position: 'absolute', top: 0, left: 0, zIndex: 10, pointerEvents: 'none' }}
-          className="rounded-br-md bg-blue-500 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-white"
+          className="rounded-br-md bg-primary px-2 py-0.5 text-[9px] font-semibold uppercase tracking-widest text-primary-foreground"
         >
           {section.label || 'Section'}
         </div>
@@ -249,7 +252,7 @@ function SectionRenderer({ section, doc, isPreview, overColumnId, activeBlockId 
       {isSectionActive && (
         <div
           style={{ position: 'absolute', inset: 0, zIndex: 5, pointerEvents: 'none' }}
-          className="outline outline-1 outline-blue-400/40 outline-offset-[-1px]"
+          className="outline outline-1 outline-primary/40 outline-offset-[-1px]"
         />
       )}
 
@@ -430,11 +433,11 @@ export function CanvasPreview({ doc, isPreview = false }: Props) {
     <div
       style={{
         width: doc.style.pageWidth,
-        background: toRgba(doc.style.pageBackground),
+        background: toRgba(doc.style.forceBackground ?? doc.style.pageBackground),
         fontFamily: doc.style.fontFamily,
         fontSize: doc.style.baseFontSize,
         minHeight: 1000,
-        boxShadow: isPreview ? 'none' : '0 4px 24px rgba(0,0,0,0.18)',
+        boxShadow: 'none',
       }}
       onClick={() => {
         if (!isPreview) selectBlock(null, null, null)

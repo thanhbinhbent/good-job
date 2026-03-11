@@ -146,6 +146,7 @@ export function makeSection(label: string, columns = 1): CanvasSection {
 export const DEFAULT_STYLE: CanvasStyle = {
   pageWidth: 794,
   pageBackground: { hex: '#ffffff', opacity: 1 },
+  forceBackground: { hex: '#ffffff', opacity: 1 },
   pagePaddingX: 0,
   pagePaddingY: 0,
   fontFamily: 'Inter',

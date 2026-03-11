@@ -24,20 +24,20 @@ interface ToolbarProps {
 }
 
 function BlockFloatingToolbar({ blockKind, isFirst, isLast, onMoveUp, onMoveDown, onDuplicate, onDelete }: ToolbarProps) {
-  const b = 'flex items-center justify-center w-5 h-5 rounded transition-colors hover:bg-white/10 disabled:opacity-25 disabled:pointer-events-none'
+  const b = 'flex items-center justify-center w-5 h-5 rounded transition-colors hover:bg-accent disabled:opacity-25 disabled:pointer-events-none'
   return (
     <div
       style={{ position: 'absolute', top: -26, right: 0, zIndex: 100 }}
-      className="flex items-center gap-px bg-slate-900/95 border border-slate-700/60 backdrop-blur text-slate-200 rounded-md shadow-lg px-1 py-0.5 select-none"
+      className="flex items-center gap-px bg-[var(--color-canvas-toolbar)] border border-border backdrop-blur text-[var(--color-canvas-toolbar-foreground)] rounded-md shadow-lg px-1 py-0.5 select-none"
       onMouseDown={(e) => e.preventDefault()}
     >
-      <span className="text-[8px] text-slate-500 pr-1 font-mono uppercase tracking-widest">{blockKind}</span>
-      <div className="w-px h-3 bg-slate-700 mr-0.5" />
+      <span className="text-[8px] text-muted-foreground pr-1 font-mono uppercase tracking-widest">{blockKind}</span>
+      <div className="w-px h-3 bg-border mr-0.5" />
       <button className={b} title="Move up" disabled={isFirst} onClick={onMoveUp}><ChevronUp size={9} /></button>
       <button className={b} title="Move down" disabled={isLast} onClick={onMoveDown}><ChevronDown size={9} /></button>
       <button className={b} title="Duplicate" onClick={onDuplicate}><Copy size={9} /></button>
-      <div className="w-px h-3 bg-slate-700 mx-0.5" />
-      <button className={`${b} hover:bg-red-500/20 text-red-400`} title="Delete" onClick={onDelete}><Trash2 size={9} /></button>
+      <div className="w-px h-3 bg-border mx-0.5" />
+      <button className={`${b} hover:bg-destructive/15 text-destructive`} title="Delete" onClick={onDelete}><Trash2 size={9} /></button>
     </div>
   )
 }
@@ -67,10 +67,10 @@ function RichFormatBar({ editor, block, update, onMoveUp, onMoveDown, onDuplicat
 
   // Base classes for tiny controls — matches app's dark surface
   const ctrl = [
-    'h-5 text-[9px] bg-slate-700/90 text-slate-100',
-    'border border-slate-500/60 rounded px-1 cursor-pointer shrink-0',
-    'hover:border-indigo-300/80 hover:bg-slate-600/95 focus:outline-none focus:border-indigo-400/90',
-    'transition-colors',
+    'h-5 min-h-5 max-h-5 box-border appearance-none leading-none text-[9px] bg-muted/60 text-foreground',
+    'border border-border rounded px-1 py-0 cursor-pointer shrink-0 shadow-none',
+    'hover:border-[var(--color-canvas-focus-ring)] hover:bg-accent focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 focus:shadow-none focus-visible:shadow-none focus:border-border focus-visible:border-border',
+    'transition-colors [transform:translateZ(0)]',
   ].join(' ')
 
   const iconBtn = (
@@ -87,21 +87,21 @@ function RichFormatBar({ editor, block, update, onMoveUp, onMoveDown, onDuplicat
       onMouseDown={(e) => { prevent(e); onMD() }}
       className={[
         'flex items-center justify-center w-5 h-5 rounded transition-colors shrink-0',
-        active   ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-300/60' : '',
-        danger   ? 'bg-red-900/25 text-red-300 border border-red-400/40 hover:bg-red-800/35' : '',
-        !active && !danger ? 'bg-slate-700/95 text-slate-200 border border-slate-500/45 hover:bg-slate-600/95 hover:text-white' : '',
+        active   ? 'bg-[var(--color-canvas-focus-soft)] text-primary border border-[var(--color-canvas-focus-ring)]' : '',
+        danger   ? 'bg-destructive/15 text-destructive border border-destructive/50 hover:bg-destructive/20' : '',
+        !active && !danger ? 'bg-background text-foreground border border-border hover:bg-accent hover:text-accent-foreground' : '',
       ].join(' ')}
     >
       {icon}
     </button>
   )
 
-  const sep = <div className="w-px h-3.5 bg-[hsl(var(--color-border))] shrink-0 mx-0.5" />
+  const sep = <div className="w-px h-3.5 bg-border shrink-0 mx-0.5" />
 
   return (
     <div
-      className="flex items-center gap-0.5 border-b border-[hsl(var(--color-border))] px-1.5 py-1 overflow-x-auto overflow-y-hidden select-none rounded-t-sm"
-      style={{ background: 'hsl(222 47% 8%)', scrollbarWidth: 'none' } as React.CSSProperties}
+      className="flex items-center gap-0.5 border border-border text-[var(--color-canvas-toolbar-foreground)] px-1.5 py-1 overflow-x-auto overflow-y-hidden select-none rounded-t-sm"
+      style={{ backgroundColor: 'var(--color-canvas-toolbar)', scrollbarWidth: 'none' } as React.CSSProperties}
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* ── Inline marks ────────────────────────────────── */}
@@ -123,7 +123,7 @@ function RichFormatBar({ editor, block, update, onMoveUp, onMoveDown, onDuplicat
       {/* ── Font size ────────────────────────────────────── */}
       <input
         type="number" value={block.fontSize} min={6} max={144}
-        className={`${ctrl} w-10 text-center`}
+        className={`${ctrl} w-10 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none`}
         onChange={(e) => { update({ fontSize: Number(e.target.value) }); refocus() }}
       />
 
@@ -141,7 +141,7 @@ function RichFormatBar({ editor, block, update, onMoveUp, onMoveDown, onDuplicat
       <label className="cursor-pointer shrink-0" title="Text color" onMouseDown={prevent}>
         <input
           type="color" value={block.color.hex}
-          className="w-5 h-5 rounded cursor-pointer p-0 border border-slate-400/45 bg-slate-700"
+          className="w-5 h-5 min-h-5 max-h-5 box-border rounded cursor-pointer p-0 border border-border bg-background focus:outline-none focus-visible:outline-none focus:ring-0 focus-visible:ring-0 shadow-none"
           style={{ WebkitAppearance: 'none' } as React.CSSProperties}
           onChange={(e) => { update({ color: { ...block.color, hex: e.target.value } }); refocus() }}
         />
@@ -215,7 +215,7 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
     autofocus: 'end',
     editorProps: {
       attributes: {
-        style: 'outline:none;cursor:text;min-height:22px;padding:4px 0;',
+        style: 'outline:none;cursor:text;min-height:1.5em;padding:0;',
       },
     },
   })
@@ -305,7 +305,7 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
         top: -34,      // ← pulls up by toolbar height
         left: -4,
         right: -4,
-        bottom: -2,
+        bottom: 'auto',
         zIndex: 50,
         display: 'flex',
         flexDirection: 'column',
@@ -326,8 +326,8 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
       </div>
       {/* Editor area — takes remaining height, aligns with the static text below */}
       <div
-        style={{ ...wrapStyle, flex: 1 }}
-        className="px-1.5 py-0.5 rounded-b-sm ring-2 ring-t-0 ring-indigo-500/70 bg-[hsl(var(--color-surface))] min-h-[1.5em] overflow-hidden"
+        style={{ ...wrapStyle, flex: '0 0 auto' }}
+        className="px-0 py-0 rounded-b-sm ring-1 ring-t-0 ring-[var(--color-canvas-focus-ring)]/80 bg-[var(--color-canvas-panel)] min-h-[1.5em] overflow-hidden [&_.ProseMirror]:m-0 [&_.ProseMirror_p]:m-0"
       >
         <EditorContent editor={editor} />
       </div>
@@ -379,8 +379,8 @@ export function BlockRenderer({
   // ── Wrappers ──────────────────────────────────────────────────────────────
   const ringCls = !isPreview
     ? isSelected
-      ? 'ring-1 ring-indigo-400/70 rounded-sm'
-      : 'hover:ring-1 hover:ring-indigo-300/25 rounded-sm'
+      ? 'ring-1 ring-[var(--color-canvas-focus-ring)] rounded-sm'
+      : 'hover:ring-1 hover:ring-[var(--color-canvas-focus-ring)]/60 rounded-sm'
     : ''
 
   const toolbar = !isPreview && isSelected && block.kind !== 'text' ? (
@@ -420,14 +420,14 @@ export function BlockRenderer({
     return (
       // position:relative anchors the absolutely-positioned overlay editor
       <div
-        className={[ringCls, !isPreview && !isEditing ? 'cursor-text' : ''].join(' ')}
+        className={[!isEditing ? ringCls : '', !isPreview && !isEditing ? 'cursor-text' : ''].join(' ')}
         style={{ position: 'relative' }}
         onClick={!isPreview && !isEditing ? handleTextClick : undefined}
       >
         {/* Static content — invisible when editing so it doesn't bleed through the overlay */}
         <div
           style={{ ...s, visibility: isEditing ? 'hidden' : undefined }}
-          dangerouslySetInnerHTML={{ __html: block.content || '<p style="color:#9ca3af;font-style:italic;font-size:12px">Click to edit\u2026</p>' }}
+          dangerouslySetInnerHTML={{ __html: block.content || '<p style="color:var(--color-muted-foreground);font-style:italic;font-size:12px">Click to edit\u2026</p>' }}
         />
         {/* Floating editor — overlays the static text, no layout shift */}
         {isEditing && (
@@ -507,7 +507,7 @@ export function BlockRenderer({
             alt=""
           />
         ) : (
-          <div style={{ width: block.width, height: block.height, borderRadius: `${block.radius}%`, background: '#e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#9ca3af', margin }}>Avatar</div>
+          <div style={{ width: block.width, height: block.height, borderRadius: `${block.radius}%`, background: 'var(--color-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--color-muted-foreground)', margin }}>Avatar</div>
         )}
       </div>
     )
@@ -534,7 +534,7 @@ export function BlockRenderer({
         {toolbar}
         {!isPreview && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
-            <div style={{ width: '50%', borderTop: '1px dashed #94a3b8', opacity: 0.3 }} />
+            <div style={{ width: '50%', borderTop: '1px dashed var(--color-muted-foreground)', opacity: 0.3 }} />
           </div>
         )}
       </div>

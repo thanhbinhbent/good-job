@@ -93,7 +93,7 @@ export function CanvasEditor({
           </Tabs>
           {isDirty && (
             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <span className="size-1.5 rounded-full bg-amber-400 inline-block" />
+              <span className="size-1.5 rounded-full bg-[var(--color-canvas-focus-ring)] inline-block" />
               Unsaved
             </span>
           )}
@@ -151,7 +151,7 @@ export function CanvasEditor({
         </div>
 
         {/* Canvas stage */}
-        <div className="flex-1 overflow-auto bg-[hsl(220,14%,10%)] p-8">
+        <div className="flex-1 overflow-auto bg-[var(--color-canvas-workspace)] p-8">
           <div className="mx-auto" style={{ width: doc.style.pageWidth }}>
             <CanvasPreview doc={doc} />
           </div>
@@ -199,7 +199,7 @@ export function CanvasEditor({
           <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
             <DialogTitle>Document Preview</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-auto bg-[hsl(220,14%,10%)] p-8">
+          <div className="flex-1 overflow-auto bg-[var(--color-canvas-workspace)] p-8">
             <div className="mx-auto" style={{ width: doc.style.pageWidth }}>
               <CanvasPreview doc={doc} isPreview />
             </div>

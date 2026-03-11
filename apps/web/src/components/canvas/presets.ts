@@ -83,6 +83,7 @@ export function harvardResumePreset(content: ResumeContent): CanvasDocument {
   const style: CanvasStyle = {
     pageWidth: 794,
     pageBackground: { hex: '#ffffff', opacity: 1 },
+    forceBackground: { hex: '#ffffff', opacity: 1 },
     pagePaddingX: 0, pagePaddingY: 0,
     fontFamily: 'Georgia',
     headingFontFamily: 'Georgia',
@@ -162,6 +163,7 @@ export function modernResumePreset(content: ResumeContent): CanvasDocument {
   const style: CanvasStyle = {
     pageWidth: 794,
     pageBackground: { hex: '#ffffff', opacity: 1 },
+    forceBackground: { hex: '#ffffff', opacity: 1 },
     pagePaddingX: 0, pagePaddingY: 0,
     fontFamily: 'Inter',
     baseFontSize: 13,
@@ -248,6 +250,7 @@ export function minimalResumePreset(content: ResumeContent): CanvasDocument {
 
   const style: CanvasStyle = {
     pageWidth: 794, pageBackground: { hex: '#ffffff', opacity: 1 },
+    forceBackground: { hex: '#ffffff', opacity: 1 },
     pagePaddingX: 0, pagePaddingY: 0, fontFamily: 'Inter', baseFontSize: 13,
     primaryColor: { hex: '#111827', opacity: 1 }, accentColor: { hex: '#6366f1', opacity: 1 },
     textColor: { hex: '#111827', opacity: 1 }, mutedColor: { hex: '#9ca3af', opacity: 1 },
@@ -289,6 +292,7 @@ export function minimalResumePreset(content: ResumeContent): CanvasDocument {
 export function blankCanvasPreset(type: 'resume' | 'portfolio' | 'cover_letter'): CanvasDocument {
   const style: CanvasStyle = {
     pageWidth: 794, pageBackground: { hex: '#ffffff', opacity: 1 },
+    forceBackground: { hex: '#ffffff', opacity: 1 },
     pagePaddingX: 0, pagePaddingY: 0, fontFamily: 'Inter', baseFontSize: 14,
     primaryColor: { hex: '#1e3a5f', opacity: 1 }, accentColor: { hex: '#2563eb', opacity: 1 },
     textColor: { hex: '#111111', opacity: 1 }, mutedColor: { hex: '#6b7280', opacity: 1 },
@@ -333,6 +337,7 @@ export function coverLetterPreset(content: CoverLetterContent): CanvasDocument {
   const h = content.header
   const style: CanvasStyle = {
     pageWidth: 794, pageBackground: { hex: '#ffffff', opacity: 1 },
+    forceBackground: { hex: '#ffffff', opacity: 1 },
     pagePaddingX: 0, pagePaddingY: 0, fontFamily: 'Georgia', baseFontSize: 13,
     primaryColor: { hex: '#1a1a1a', opacity: 1 }, accentColor: { hex: '#2563eb', opacity: 1 },
     textColor: { hex: '#1a1a1a', opacity: 1 }, mutedColor: { hex: '#555555', opacity: 1 },
@@ -376,6 +381,7 @@ export function coverLetterPreset(content: CoverLetterContent): CanvasDocument {
 export function portfolioPreset(content: PortfolioContent): CanvasDocument {
   const style: CanvasStyle = {
     pageWidth: 794, pageBackground: { hex: '#ffffff', opacity: 1 },
+    forceBackground: { hex: '#ffffff', opacity: 1 },
     pagePaddingX: 0, pagePaddingY: 0, fontFamily: 'Inter', baseFontSize: 13,
     primaryColor: { hex: '#1e3a5f', opacity: 1 }, accentColor: { hex: '#2563eb', opacity: 1 },
     textColor: { hex: '#111111', opacity: 1 }, mutedColor: { hex: '#6b7280', opacity: 1 },

@@ -427,6 +427,15 @@ export const canvasStyleSchema = z.object({
   // Page
   pageWidth: z.number().default(794),    // px — A4 = 794
   pageBackground: canvasColorSchema.default({ hex: '#ffffff', opacity: 1 }),
+  forceBackground: z
+    .union([canvasColorSchema, z.boolean()])
+    .transform((value) => {
+      if (typeof value === 'boolean') {
+        return { hex: '#ffffff', opacity: value ? 1 : 0 }
+      }
+      return value
+    })
+    .default({ hex: '#ffffff', opacity: 1 }),
   pagePaddingX: z.number().default(0),   // outer margin handled in sections
   pagePaddingY: z.number().default(0),
 

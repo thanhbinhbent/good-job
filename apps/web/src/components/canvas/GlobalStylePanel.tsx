@@ -48,6 +48,12 @@ export function GlobalStylePanel() {
         <Row label="Page BG">
           <ColorSwatch value={style.pageBackground} onChange={(c) => s({ pageBackground: c })} />
         </Row>
+        <Row label="Force BG">
+          <ColorSwatch
+            value={style.forceBackground ?? style.pageBackground}
+            onChange={(c) => s({ forceBackground: c })}
+          />
+        </Row>
         <Row label="Width (px)">
           <div className="flex items-center gap-2">
             <Slider value={[style.pageWidth]} min={600} max={1200} step={2} className="flex-1"

@@ -65,7 +65,7 @@ function SortableBlockRow({ block, sec, col }: { block: CanvasBlock; sec: Canvas
       style={style}
       className={cn(
         'group flex items-center gap-1.5 px-2.5 py-1.5 rounded cursor-pointer text-xs transition-colors',
-        selectedBlockId === block.id ? 'bg-blue-500/15 text-blue-600' : 'hover:bg-muted/60',
+        selectedBlockId === block.id ? 'bg-primary/15 text-primary' : 'hover:bg-muted/60',
       )}
       onClick={() => selectBlock(sec.id, col.id, block.id)}
     >
@@ -139,7 +139,7 @@ function SortableBlockList({ sec, col }: { sec: CanvasSection; col: CanvasColumn
 function SortableSectionRow({ sec, idx, total }: { sec: CanvasSection; idx: number; total: number }) {
   const {
     removeSection, moveSection, updateSection, toggleSectionHidden,
-    setSectionColumns, addBlock, selectBlock, selectedSectionId, selectedBlockId, selectSection,
+    setSectionColumns, addBlock, selectBlock, selectedSectionId, selectSection,
   } = useCanvasStore()
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: sec.id })
@@ -149,7 +149,7 @@ function SortableSectionRow({ sec, idx, total }: { sec: CanvasSection; idx: numb
     opacity: isDragging ? 0.4 : 1,
   }
 
-  const isSelected = selectedSectionId === sec.id && !selectedBlockId
+  const isExpanded = selectedSectionId === sec.id
 
   return (
     <div ref={setNodeRef} style={style}>
@@ -157,10 +157,10 @@ function SortableSectionRow({ sec, idx, total }: { sec: CanvasSection; idx: numb
       <div
         className={cn(
           'group flex items-center gap-1.5 px-3 py-2 cursor-pointer transition-colors border-b border-border/50',
-          isSelected ? 'bg-primary/10' : 'hover:bg-muted/40',
+          isExpanded ? 'bg-primary/10' : 'hover:bg-muted/40',
           sec.hidden && 'opacity-40',
         )}
-        onClick={() => selectSection(isSelected ? null : sec.id)}
+        onClick={() => selectSection(isExpanded ? null : sec.id)}
       >
         {/* Drag handle */}
         <button
@@ -190,7 +190,7 @@ function SortableSectionRow({ sec, idx, total }: { sec: CanvasSection; idx: numb
       </div>
 
       {/* Expanded section settings */}
-      {isSelected && (
+      {isExpanded && (
         <div className="bg-muted/20 px-4 py-3 border-b border-border/50 space-y-4">
           {/* Name */}
           <div className="space-y-1">
@@ -356,7 +356,7 @@ function BlockKindIcon({ kind }: { kind: CanvasBlockKind }) {
 
 function blockLabel(block: CanvasBlock): string {
   if (block.kind === 'text') {
-    const stripped = block.content.replace(/<[^>]*>/g, '').slice(0, 32)
+    const stripped = (block.content ?? '').replace(/<[^>]*>/g, '').slice(0, 32)
     return stripped || '(empty text)'
   }
   if (block.kind === 'date') return block.startDate || 'Date range'
