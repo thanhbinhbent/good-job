@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { FileText, Globe, Mail, Plus, Trash2 } from 'lucide-react'
 import type { DocumentType } from '@binh-tran/shared'
 
@@ -95,19 +95,20 @@ function AdminDashboard() {
       </div>
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="!w-[92vw] sm:!w-[860px] !max-w-[860px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create document</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Document type</Label>
-              <Select value={newType} onValueChange={(v) => onTypeChange(v as DocumentType)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {TYPES.map((type) => <SelectItem key={type} value={type}>{TYPE_LABELS[type]}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Tabs value={newType} onValueChange={(v) => onTypeChange(v as DocumentType)}>
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="resume">Resume</TabsTrigger>
+                  <TabsTrigger value="cover_letter">Cover Letter</TabsTrigger>
+                  <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
 
             <div className="space-y-2">

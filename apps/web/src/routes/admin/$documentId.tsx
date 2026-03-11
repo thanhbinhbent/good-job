@@ -32,7 +32,7 @@ function DocumentEditorPage() {
   const [pdfLoading, setPdfLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [templateOpen, setTemplateOpen] = useState(false)
-  const [templateMode, setTemplateMode] = useState<'keep' | 'clear'>('keep')
+  const [templateMode, setTemplateMode] = useState<'keep' | 'clear'>('clear')
   const [selectedTemplateId, setSelectedTemplateId] = useState('')
 
   const documentType = (doc?.type as DocumentType | undefined) ?? 'resume'
@@ -145,7 +145,7 @@ function DocumentEditorPage() {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => {
             setSelectedTemplateId(activeTemplateId)
-            setTemplateMode('keep')
+            setTemplateMode('clear')
             setTemplateOpen(true)
           }}>
             <WandSparkles className="size-4 mr-1" />
@@ -188,6 +188,11 @@ function DocumentEditorPage() {
                   <SelectItem value="clear">Clear current data and apply template</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {templateMode === 'clear'
+                  ? 'Clear mode applies full sample content and style from the selected template.'
+                  : 'Keep mode preserves your current content and applies template style only.'}
+              </p>
             </div>
 
             <div className="flex justify-end gap-2">

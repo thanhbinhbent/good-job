@@ -27,7 +27,7 @@ export function TemplateGallery({ type, templates, selectedTemplateId, onSelect 
   }
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {previews.map(({ template, canvas }) => {
         const selected = selectedTemplateId === template.id
         return (
@@ -40,12 +40,12 @@ export function TemplateGallery({ type, templates, selectedTemplateId, onSelect 
               selected ? 'border-primary ring-1 ring-primary/50' : 'border-border hover:border-primary/50',
             )}
           >
-            <div className="h-44 overflow-hidden bg-[var(--color-canvas-workspace)]">
+            <div className="h-36 overflow-hidden bg-[var(--color-canvas-workspace)]">
               <div
                 className="origin-top-left pointer-events-none"
                 style={{
                   width: canvas.style.pageWidth,
-                  transform: 'scale(0.23)',
+                  transform: 'scale(0.19)',
                 }}
               >
                 <CanvasPreview doc={canvas} isPreview />
