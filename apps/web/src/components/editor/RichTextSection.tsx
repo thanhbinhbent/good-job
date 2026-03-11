@@ -9,6 +9,7 @@ type RichTextSectionProps = {
   isAdmin?: boolean;
   className?: string;
   placeholder?: string;
+  debounceMs?: number;
 };
 
 export function RichTextSection({
@@ -17,6 +18,7 @@ export function RichTextSection({
   isAdmin = false,
   className,
   placeholder = 'Click to edit…',
+  debounceMs = 600,
 }: RichTextSectionProps) {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -36,9 +38,21 @@ export function RichTextSection({
     onUpdate: ({ editor }) => {
       if (!isAdmin) return;
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      if (debounceMs <= 0) {
+        onSave(editor.getHTML());
+        return;
+      }
       saveTimerRef.current = setTimeout(() => {
         onSave(editor.getHTML());
-      }, 600);
+      }, debounceMs);
+    },
+    onBlur: ({ editor }) => {
+      if (!isAdmin) return;
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      onSave(editor.getHTML());
     },
   });
 

@@ -11,6 +11,7 @@ import { Trash2, Copy, ChevronUp, ChevronDown, X } from 'lucide-react'
 import { RichTextSection } from '@/components/editor/RichTextSection'
 import { Badge } from '@/components/ui/badge'
 import { useState } from 'react'
+import { toRgba } from './canvas-utils'
 
 // ── Small reusable form controls ──────────────────────────────────────────────
 
@@ -168,14 +169,31 @@ export function BlockPropertiesPanel() {
 
 function TextBlockEditor({ block, update }: { block: import('@binh-tran/shared').TextBlock; update: (p: Partial<CanvasBlock>) => void }) {
   const p = (patch: object) => update(patch as Partial<CanvasBlock>)
+  const contentStyle: React.CSSProperties = {
+    fontFamily: block.fontFamily || 'Inter',
+    fontSize: block.fontSize,
+    fontWeight: block.fontWeight,
+    fontStyle: block.fontStyle,
+    color: toRgba(block.color),
+    textAlign: block.align,
+    lineHeight: block.lineHeight,
+    letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
+    textTransform: block.textTransform === 'none' ? undefined : block.textTransform,
+  }
+
   return (
     <div className="space-y-3">
       <Group title="Content">
-        <div className="min-h-[80px] overflow-hidden rounded border border-border bg-background transition-colors focus-within:border-ring/70">
+        <div
+          className="min-h-[80px] overflow-hidden rounded border border-border bg-background transition-colors focus-within:border-ring/70 [&_.ProseMirror]:!m-0 [&_.ProseMirror]:!p-0 [&_.ProseMirror]:!outline-none"
+          style={contentStyle}
+        >
           <RichTextSection
+            key={block.id}
             content={block.content}
             onSave={(html) => p({ content: html })}
             isAdmin
+            debounceMs={0}
             className="!border-0 !rounded-none hover:!border-0 focus:!border-0"
           />
         </div>

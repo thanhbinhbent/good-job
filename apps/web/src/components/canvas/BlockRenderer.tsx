@@ -195,6 +195,7 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
   const { updateBlock } = useCanvasStore()
   const containerRef = useRef<HTMLDivElement>(null)
   const blurTimerRef = useRef<number | null>(null)
+  const syncTimerRef = useRef<number | null>(null)
   // Prevent double-save by tracking whether we already saved
   const savedRef = useRef(false)
 
@@ -217,6 +218,15 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
       attributes: {
         style: 'outline:none;cursor:text;min-height:1.5em;padding:0;',
       },
+    },
+    onUpdate: ({ editor }) => {
+      if (syncTimerRef.current !== null) {
+        window.clearTimeout(syncTimerRef.current)
+      }
+      syncTimerRef.current = window.setTimeout(() => {
+        syncTimerRef.current = null
+        updateBlock(sectionId, columnId, block.id, { content: editor.getHTML() })
+      }, 120)
     },
   })
 
@@ -273,7 +283,13 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
     return () => window.removeEventListener('keydown', handleKey, { capture: true })
   }, [editor, save, onClose])
 
-  useEffect(() => () => clearPendingBlur(), [clearPendingBlur])
+  useEffect(() => () => {
+    clearPendingBlur()
+    if (syncTimerRef.current !== null) {
+      window.clearTimeout(syncTimerRef.current)
+      syncTimerRef.current = null
+    }
+  }, [clearPendingBlur])
 
   // Block-level styles applied to wrapper → editor inherits via CSS cascade
   const wrapStyle: React.CSSProperties = {
