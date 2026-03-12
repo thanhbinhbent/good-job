@@ -214,7 +214,6 @@ function DocumentEditorPage() {
       <div className="flex-1 min-h-0">
         <CanvasEditor
           key={`${doc.id}-${canvasResetToken}`}
-          documentId={doc.id}
           documentType={doc.type as 'resume' | 'portfolio' | 'cover_letter'}
           rawContent={rawContent}
           currentTemplateId={activeTemplateId}

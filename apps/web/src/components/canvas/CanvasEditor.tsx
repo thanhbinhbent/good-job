@@ -16,7 +16,6 @@ import type { CanvasDocument } from '@binh-tran/shared'
 import { cn } from '@/lib/utils'
 
 interface Props {
-  documentId: string
   documentType: 'resume' | 'portfolio' | 'cover_letter'
   rawContent: unknown        // parsed JSON content from backend
   currentTemplateId: string
@@ -28,7 +27,6 @@ interface Props {
 type LeftTab = 'sections' | 'style'
 
 export function CanvasEditor({
-  documentId,
   documentType,
   rawContent,
   currentTemplateId,
