@@ -96,6 +96,8 @@ export function CanvasEditor({
       await onSave(doc)
       markSaved()
       setSaveError(null)
+      // Update the snapshot to prevent unnecessary reload after save
+      lastIncomingSnapshotRef.current = JSON.stringify(doc)
     } catch (error) {
       console.error('Save failed:', error)
       setSaveError('Failed to save changes. Please try again.')
