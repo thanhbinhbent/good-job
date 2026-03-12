@@ -14,7 +14,7 @@ import { Label } from '@/components/ui/label'
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Eye, EyeOff,
   Type, Calendar, Tag, BarChart2, Minus, Image, Link2, Space, GripVertical,
-  Rows3,
+  Rows3, Star, Clock, Award, TrendingUp, SquareStack, Share2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -361,6 +361,8 @@ function BlockKindIcon({ kind }: { kind: CanvasBlockKind }) {
   const map: Record<CanvasBlockKind, React.FC<{ className?: string }>> = {
     text: Type, dualText: Rows3, date: Calendar, tags: Tag, progress: BarChart2,
     divider: Minus, image: Image, link: Link2, spacer: Space,
+    rating: Star, timeline: Clock, badge: Award, stat: TrendingUp,
+    card: SquareStack, socialLinks: Share2,
   }
   const Icon = map[kind] ?? Type
   return <Icon className="size-3 text-muted-foreground shrink-0" />

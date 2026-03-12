@@ -165,4 +165,83 @@
     height: 0;
     pointer-events: none;
   }
+
+  /* Canvas block micro-interactions */
+  .canvas-block {
+    transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
+  }
+
+  .canvas-block:hover:not(.canvas-block-dragging) {
+    transform: scale(1.005);
+    box-shadow: 0 2px 8px oklch(0 0 0 / 0.08);
+  }
+
+  /* Selection pulse animation */
+  @keyframes pulse-ring {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+  }
+
+  .canvas-block-selected {
+    animation: pulse-ring 2s ease-in-out infinite;
+  }
+
+  /* Block add animation */
+  @keyframes slide-up-fade-in {
+    0% {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .canvas-block-enter {
+    animation: slide-up-fade-in 0.25s ease-out;
+  }
+
+  /* Block delete animation */
+  @keyframes fade-out-collapse {
+    0% {
+      opacity: 1;
+      max-height: 200px;
+    }
+    50% {
+      opacity: 0;
+      max-height: 200px;
+    }
+    100% {
+      opacity: 0;
+      max-height: 0;
+      margin: 0;
+      padding: 0;
+    }
+  }
+
+  .canvas-block-exit {
+    animation: fade-out-collapse 0.3s ease-in;
+  }
+}
+
+/* Reduced motion support for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Canvas-specific elements */
+  .canvas-block,
+  .drop-zone,
+  .drag-overlay,
+  .sortable-item {
+    transition: none !important;
+    animation: none !important;
+  }
 }

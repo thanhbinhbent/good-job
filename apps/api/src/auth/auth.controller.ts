@@ -53,18 +53,26 @@ export class AuthController {
     }
 
     // Restrict to localhost — prevents exploitation if flags are misconfigured on a remote server
-    const ip = (req as Request & { ip?: string }).ip ?? req.socket?.remoteAddress ?? '';
+    const ip =
+      (req as Request & { ip?: string }).ip ?? req.socket?.remoteAddress ?? '';
     const isLocal = ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(ip);
     if (!isLocal) {
       this.logger.error(`dev-login blocked for remote IP ${ip}`);
-      res.status(403).json({ error: 'Dev login only accessible from localhost' });
+      res
+        .status(403)
+        .json({ error: 'Dev login only accessible from localhost' });
       return;
     }
 
-    this.logger.warn('⚠️  ADMIN_BYPASS active — dev login used (never enable in production)');
+    this.logger.warn(
+      '⚠️  ADMIN_BYPASS active — dev login used (never enable in production)',
+    );
 
     const token = this.auth.signAdminToken();
-    const frontendUrl = this.config.get<string>('SHARE_BASE_URL', 'http://localhost:5173');
+    const frontendUrl = this.config.get<string>(
+      'SHARE_BASE_URL',
+      'http://localhost:5173',
+    );
     res.cookie('access_token', token, {
       httpOnly: true,
       secure: false,

@@ -44,7 +44,7 @@ function defaultContent(type: CreateDocumentInput['type']): unknown {
   if (type === 'portfolio') {
     return {
       hero: {
-        headline: 'Hello, I\'m Your Name',
+        headline: "Hello, I'm Your Name",
         subheadline: 'I build things for the web.',
         ctaLabel: 'View my work',
         ctaUrl: '#projects',

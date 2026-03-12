@@ -5,6 +5,7 @@ import { CanvasPreview } from './CanvasPreview'
 import { SectionPanel } from './SectionPanel'
 import { BlockPropertiesPanel } from './BlockPropertiesPanel'
 import { GlobalStylePanel } from './GlobalStylePanel'
+import { CanvasErrorBoundary } from './CanvasErrorBoundary'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
@@ -13,6 +14,7 @@ import {
   PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
 } from 'lucide-react'
 import type { CanvasDocument } from '@binh-tran/shared'
+import { canvasDocumentSchema } from '@binh-tran/shared'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -39,7 +41,9 @@ export function CanvasEditor({
   const [previewOpen, setPreviewOpen] = useState(false)
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightCollapsed, setRightCollapsed] = useState(false)
+  const [showSavingIndicator, setShowSavingIndicator] = useState(false)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const savingIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastIncomingSnapshotRef = useRef<string | null>(null)
 
   const incomingCanvas = useMemo<CanvasDocument>(() => {
@@ -62,18 +66,40 @@ export function CanvasEditor({
     lastIncomingSnapshotRef.current = incomingSnapshot
   }, [isDirty, incomingSnapshot, incomingCanvas, load])
 
-  // Auto-save 1.5s after last change
+  // Auto-save 1s after last change (reduced from 1.5s for faster saves)
   const handleSave = useCallback(async () => {
     if (!doc) return
+
+    // Validate document before saving
+    try {
+      canvasDocumentSchema.parse(doc)
+    } catch (error) {
+      console.error('Canvas document validation failed:', error)
+      // Still attempt to save - validation is a warning, not a blocker
+    }
+
+    // Show saving indicator only if save takes > 500ms
+    if (savingIndicatorTimeoutRef.current) clearTimeout(savingIndicatorTimeoutRef.current)
+    savingIndicatorTimeoutRef.current = setTimeout(() => {
+      setShowSavingIndicator(true)
+    }, 500)
+
     await onSave(doc)
     markSaved()
+
+    // Clear and hide the saving indicator
+    if (savingIndicatorTimeoutRef.current) clearTimeout(savingIndicatorTimeoutRef.current)
+    setShowSavingIndicator(false)
   }, [doc, onSave, markSaved])
 
   useEffect(() => {
     if (!isDirty) return
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-    saveTimeoutRef.current = setTimeout(() => { void handleSave() }, 1500)
-    return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current) }
+    saveTimeoutRef.current = setTimeout(() => { void handleSave() }, 1000) // Reduced from 1500ms to 1000ms
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+      if (savingIndicatorTimeoutRef.current) clearTimeout(savingIndicatorTimeoutRef.current)
+    }
   }, [isDirty, handleSave])
 
   if (!doc) {
@@ -100,9 +126,15 @@ export function CanvasEditor({
             </TabsList>
           </Tabs>
           {isDirty && (
-            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1" role="status" aria-live="polite">
               <span className="size-1.5 rounded-full bg-[var(--color-canvas-focus-ring)] inline-block" />
-              Unsaved
+              Unsaved changes
+            </span>
+          )}
+          {showSavingIndicator && (
+            <span className="text-[10px] text-muted-foreground flex items-center gap-1 animate-in fade-in duration-200" role="status" aria-live="polite">
+              <Loader2 className="size-3 animate-spin" />
+              Saving...
             </span>
           )}
         </div>
@@ -132,6 +164,8 @@ export function CanvasEditor({
                 className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors py-2"
                 title="Expand panel"
                 onClick={() => setLeftCollapsed(false)}
+                aria-label="Expand structure panel"
+                aria-expanded="false"
               >
                 <PanelLeftOpen className="size-4" />
                 <span className="text-[8px] uppercase tracking-widest font-medium" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Structure</span>
@@ -150,6 +184,8 @@ export function CanvasEditor({
                   className="text-muted-foreground hover:text-foreground transition-colors"
                   title="Collapse panel"
                   onClick={() => setLeftCollapsed(true)}
+                  aria-label="Collapse structure panel"
+                  aria-expanded="true"
                 >
                   <PanelLeftClose className="size-3.5" />
                 </button>
@@ -159,9 +195,11 @@ export function CanvasEditor({
         </div>
 
         {/* Canvas stage */}
-        <div className="flex-1 overflow-auto bg-[var(--color-canvas-workspace)] p-8">
+        <div className="flex-1 overflow-auto bg-[var(--color-canvas-workspace)] p-8" role="main" aria-label="Canvas editor">
           <div className="mx-auto" style={{ width: doc.style.pageWidth }}>
-            <CanvasPreview doc={doc} />
+            <CanvasErrorBoundary>
+              <CanvasPreview doc={doc} />
+            </CanvasErrorBoundary>
           </div>
         </div>
 
@@ -177,6 +215,8 @@ export function CanvasEditor({
                 className="flex flex-col items-center gap-1 text-muted-foreground hover:text-foreground transition-colors py-2"
                 title="Expand panel"
                 onClick={() => setRightCollapsed(false)}
+                aria-label="Expand properties panel"
+                aria-expanded="false"
               >
                 <PanelRightOpen className="size-4" />
                 <span className="text-[8px] uppercase tracking-widest font-medium" style={{ writingMode: 'vertical-rl' }}>Properties</span>
@@ -192,6 +232,8 @@ export function CanvasEditor({
                   className="text-muted-foreground hover:text-foreground transition-colors"
                   title="Collapse panel"
                   onClick={() => setRightCollapsed(true)}
+                  aria-label="Collapse properties panel"
+                  aria-expanded="true"
                 >
                   <PanelRightClose className="size-3.5" />
                 </button>

@@ -404,6 +404,111 @@ export const spacerBlockSchema = z.object({
 }).merge(blockLayoutSchema)
 export type SpacerBlock = z.infer<typeof spacerBlockSchema>
 
+// Rating block (for skill proficiency, tech stack levels, etc.)
+export const ratingBlockSchema = z.object({
+  kind: z.literal('rating'),
+  id: z.string(),
+  label: z.string().default(''),
+  value: z.number().min(0).max(10).default(4),    // Current rating
+  maxValue: z.number().min(1).max(10).default(5), // Max rating (5 or 10)
+  style: z.enum(['stars', 'dots', 'bars']).default('stars'),
+  color: canvasColorSchema.default({ hex: '#facc15', opacity: 1 }),
+  emptyColor: canvasColorSchema.default({ hex: '#e5e7eb', opacity: 1 }),
+  size: z.number().default(16),         // px
+  marginBottom: z.number().default(8),
+}).merge(blockLayoutSchema)
+export type RatingBlock = z.infer<typeof ratingBlockSchema>
+
+// Timeline block (for career progression, portfolio timeline)
+export const timelineBlockSchema = z.object({
+  kind: z.literal('timeline'),
+  id: z.string(),
+  entries: z.array(z.object({
+    id: z.string(),
+    year: z.string(),
+    title: z.string(),
+    subtitle: z.string().optional(),
+    description: z.string().optional(),
+  })).default([]),
+  dotColor: canvasColorSchema.default({ hex: '#2563eb', opacity: 1 }),
+  lineColor: canvasColorSchema.default({ hex: '#e5e7eb', opacity: 1 }),
+  dotSize: z.number().default(8),       // px
+  lineWidth: z.number().default(2),     // px
+  spacing: z.number().default(16),      // px between entries
+  marginBottom: z.number().default(12),
+}).merge(blockLayoutSchema)
+export type TimelineBlock = z.infer<typeof timelineBlockSchema>
+
+// Badge block (for certifications, achievements, status indicators)
+export const badgeBlockSchema = z.object({
+  kind: z.literal('badge'),
+  id: z.string(),
+  text: z.string().default('Badge'),
+  backgroundColor: canvasColorSchema.default({ hex: '#3b82f6', opacity: 1 }),
+  textColor: canvasColorSchema.default({ hex: '#ffffff', opacity: 1 }),
+  borderRadius: z.number().default(4), // px
+  padding: z.object({
+    x: z.number().default(8),
+    y: z.number().default(4),
+  }).default({ x: 8, y: 4 }),
+  fontSize: z.number().default(11),
+  fontWeight: z.enum(['300','400','500','600','700','800']).default('600'),
+  marginBottom: z.number().default(8),
+}).merge(blockLayoutSchema)
+export type BadgeBlock = z.infer<typeof badgeBlockSchema>
+
+// Stat block (for key metrics: years experience, projects completed, etc.)
+export const statBlockSchema = z.object({
+  kind: z.literal('stat'),
+  id: z.string(),
+  value: z.string().default('10+'),     // "10+", "95%", "2M"
+  label: z.string().default(''),
+  valueSize: z.number().default(32),    // px
+  labelSize: z.number().default(12),    // px
+  valueColor: canvasColorSchema.default({ hex: '#111111', opacity: 1 }),
+  labelColor: canvasColorSchema.default({ hex: '#6b7280', opacity: 1 }),
+  align: z.enum(['left', 'center', 'right']).default('center'),
+  marginBottom: z.number().default(12),
+}).merge(blockLayoutSchema)
+export type StatBlock = z.infer<typeof statBlockSchema>
+
+// Card block (for project showcases, testimonials, case studies)
+export const cardBlockSchema = z.object({
+  kind: z.literal('card'),
+  id: z.string(),
+  title: z.string().default('Title'),
+  subtitle: z.string().optional(),
+  description: z.string().default(''),
+  imageUrl: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+  backgroundColor: canvasColorSchema.default({ hex: '#f9fafb', opacity: 1 }),
+  borderColor: canvasColorSchema.default({ hex: '#e5e7eb', opacity: 1 }),
+  borderWidth: z.number().default(1),   // px
+  borderRadius: z.number().default(8),  // px
+  padding: z.number().default(16),      // px
+  marginBottom: z.number().default(12),
+}).merge(blockLayoutSchema)
+export type CardBlock = z.infer<typeof cardBlockSchema>
+
+// Social links block (for contact information, social media links)
+export const socialLinksBlockSchema = z.object({
+  kind: z.literal('socialLinks'),
+  id: z.string(),
+  links: z.array(z.object({
+    id: z.string(),
+    platform: z.enum(['email', 'linkedin', 'github', 'twitter', 'website', 'phone']),
+    url: z.string(),
+    label: z.string().optional(),
+  })).default([]),
+  layout: z.enum(['horizontal', 'vertical', 'grid']).default('horizontal'),
+  iconSize: z.number().default(20),     // px
+  gap: z.number().default(12),          // px
+  showLabels: z.boolean().default(false),
+  color: canvasColorSchema.default({ hex: '#3b82f6', opacity: 1 }),
+  marginBottom: z.number().default(12),
+}).merge(blockLayoutSchema)
+export type SocialLinksBlock = z.infer<typeof socialLinksBlockSchema>
+
 // Union of all block types
 export const canvasBlockSchema = z.discriminatedUnion('kind', [
   textBlockSchema,
@@ -415,6 +520,12 @@ export const canvasBlockSchema = z.discriminatedUnion('kind', [
   linkBlockSchema,
   dualTextBlockSchema,
   spacerBlockSchema,
+  ratingBlockSchema,
+  timelineBlockSchema,
+  badgeBlockSchema,
+  statBlockSchema,
+  cardBlockSchema,
+  socialLinksBlockSchema,
 ])
 export type CanvasBlock = z.infer<typeof canvasBlockSchema>
 export type CanvasBlockKind = CanvasBlock['kind']

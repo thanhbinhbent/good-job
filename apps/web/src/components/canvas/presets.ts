@@ -241,6 +241,67 @@ function tags(items: string[]): CanvasBlock {
   }
 }
 
+function rating(label: string, value: number, maxValue = 5, style: 'stars' | 'dots' | 'bars' = 'stars'): CanvasBlock {
+  return {
+    kind: 'rating', id: id(), label, value, maxValue, style,
+    color: { hex: '#facc15', opacity: 1 },
+    emptyColor: { hex: '#e5e7eb', opacity: 1 },
+    size: 16, marginBottom: 8, rowWidth: 100,
+  }
+}
+
+function badge(text: string, color?: string): CanvasBlock {
+  return {
+    kind: 'badge', id: id(), text,
+    backgroundColor: { hex: color || '#3b82f6', opacity: 1 },
+    textColor: { hex: '#ffffff', opacity: 1 },
+    borderRadius: 4, padding: { x: 8, y: 4 },
+    fontSize: 11, fontWeight: '600', marginBottom: 8, rowWidth: 100,
+  }
+}
+
+function stat(value: string, label: string): CanvasBlock {
+  return {
+    kind: 'stat', id: id(), value, label,
+    valueSize: 32, labelSize: 12,
+    valueColor: { hex: '#111111', opacity: 1 },
+    labelColor: { hex: '#6b7280', opacity: 1 },
+    align: 'center', marginBottom: 12, rowWidth: 100,
+  }
+}
+
+function card(title: string, description: string, tags: string[] = [], imageUrl?: string): CanvasBlock {
+  return {
+    kind: 'card', id: id(), title, subtitle: '', description,
+    imageUrl, tags,
+    backgroundColor: { hex: '#f9fafb', opacity: 1 },
+    borderColor: { hex: '#e5e7eb', opacity: 1 },
+    borderWidth: 1, borderRadius: 8, padding: 16,
+    marginBottom: 12, rowWidth: 100,
+  }
+}
+
+function timeline(entries: Array<{ year: string; title: string; subtitle?: string; description?: string }>): CanvasBlock {
+  return {
+    kind: 'timeline', id: id(),
+    entries: entries.map(e => ({ id: id(), ...e })),
+    dotColor: { hex: '#2563eb', opacity: 1 },
+    lineColor: { hex: '#e5e7eb', opacity: 1 },
+    dotSize: 8, lineWidth: 2, spacing: 16,
+    marginBottom: 12, rowWidth: 100,
+  }
+}
+
+function socialLinks(links: Array<{ platform: 'email' | 'linkedin' | 'github' | 'twitter' | 'website' | 'phone'; url: string; label?: string }>): CanvasBlock {
+  return {
+    kind: 'socialLinks', id: id(),
+    links: links.map(l => ({ id: id(), ...l })),
+    layout: 'horizontal', iconSize: 20, gap: 12,
+    showLabels: false, color: { hex: '#3b82f6', opacity: 1 },
+    marginBottom: 12, rowWidth: 100,
+  }
+}
+
 function col(blocks: CanvasBlock[], weight = 1): CanvasColumn {
   return { id: id(), weight, paddingX: 0, paddingY: 0, blocks }
 }
@@ -328,6 +389,37 @@ export function harvardResumePreset(content: ResumeContent): CanvasDocument {
       )
     })
     sections.push(section('Skills', [col(blocks)]))
+  }
+
+  // Certifications (new - using badge blocks)
+  if (content.certifications.length > 0) {
+    const blocks: CanvasBlock[] = [heading('Certifications'), divider()]
+    content.certifications.forEach((cert, i) => {
+      if (i > 0) blocks.push(spacer(6))
+      blocks.push(
+        badge(cert.name, '#16a34a'),
+        text(`${cert.issuer} · ${fmtMonth(cert.date) || cert.date}`, { fontSize: 11, color: { hex: '#666666', opacity: 1 }, marginBottom: 4 }),
+      )
+    })
+    sections.push(section('Certifications', [col(blocks)]))
+  }
+
+  // Projects (enhanced with card blocks)
+  if (content.projects.length > 0) {
+    const blocks: CanvasBlock[] = [heading('Projects'), divider()]
+    content.projects.forEach((proj, i) => {
+      if (i > 0) blocks.push(spacer(10))
+      const links: string[] = []
+      if (proj.url) links.push(`🔗 ${proj.url}`)
+      if (proj.repo) links.push(`📦 ${proj.repo}`)
+      blocks.push(
+        text(`<strong>${proj.name}</strong>`, { fontSize: 14, fontWeight: '700', marginBottom: 2 }),
+        text(proj.description, { fontSize: 12, lineHeight: 1.55, color: { hex: '#333333', opacity: 1 }, marginBottom: 4 }),
+        proj.tags.length > 0 ? tags(proj.tags) : spacer(0),
+        links.length > 0 ? text(links.join(' · '), { fontSize: 10, color: { hex: '#666666', opacity: 1 } }) : spacer(0),
+      )
+    })
+    sections.push(section('Projects', [col(blocks)]))
   }
 
   return { version: 1, style, sections }
@@ -573,46 +665,383 @@ export function portfolioPreset(content: PortfolioContent): CanvasDocument {
     heading('About'),
     divider(),
     text(content.about.bio, { fontSize: 13, lineHeight: 1.7 }),
+    spacer(12),
+    // Add stat blocks for highlights
+    ...content.about.highlights.map(h => {
+      const parts = h.split(' ')
+      const value = parts[0] || '10+'
+      const label = parts.slice(1).join(' ') || 'Stat'
+      return stat(value, label)
+    }),
   ])]))
 
+  // Projects (enhanced with card blocks)
   if (content.projects.length > 0) {
     const blocks: CanvasBlock[] = [heading('Projects'), divider()]
     content.projects.forEach((proj, i) => {
       if (i > 0) blocks.push(spacer(10))
       blocks.push(
-        text(`<strong>${proj.name}</strong>`, { fontSize: 14, fontWeight: '700', marginBottom: 2 }),
-        text(proj.description, { fontSize: 12, lineHeight: 1.55, color: { hex: '#374151', opacity: 1 } }),
-        proj.tags.length > 0 ? tags(proj.tags) : spacer(0),
+        card(proj.name, proj.description, proj.tags, undefined)
       )
+      // Add links below card
+      const links: string[] = []
+      if (proj.url) links.push(`🔗 ${proj.url}`)
+      if (proj.repo) links.push(`📦 ${proj.repo}`)
+      if (links.length > 0) {
+        blocks.push(text(links.join(' · '), { fontSize: 10, color: { hex: '#6b7280', opacity: 1 }, marginBottom: 8 }))
+      }
     })
     sections.push(section('Projects', [col(blocks)]))
   }
 
+  // Tech Stack (enhanced with rating blocks for proficiency visualization)
+  if (content.techStack.length > 0) {
+    const levelToValue = { beginner: 2, intermediate: 3, advanced: 4, expert: 5 }
+    const grouped = content.techStack.reduce((acc, tech) => {
+      acc[tech.category] = acc[tech.category] ?? []
+      acc[tech.category].push(tech)
+      return acc
+    }, {} as Record<string, typeof content.techStack>)
+
+    const blocks: CanvasBlock[] = [heading('Tech Stack'), divider()]
+    Object.entries(grouped).forEach(([cat, items]) => {
+      blocks.push(text(cat, { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: { hex: '#6b7280', opacity: 1 }, letterSpacing: 0.06, marginBottom: 6 }))
+      items.forEach(tech => {
+        blocks.push(rating(tech.name, levelToValue[tech.level] || 3, 5, 'dots'))
+      })
+      blocks.push(spacer(8))
+    })
+    sections.push(section('Tech Stack', [col(blocks)]))
+  }
+
+  // Timeline (enhanced with timeline block)
+  if (content.timeline.length > 0) {
+    const blocks: CanvasBlock[] = [heading('Timeline'), divider()]
+    blocks.push(
+      timeline(content.timeline.map(item => ({
+        year: item.year,
+        title: item.title,
+        subtitle: item.type,
+        description: item.description,
+      })))
+    )
+    sections.push(section('Timeline', [col(blocks)]))
+  }
+
+  // Contact (enhanced with social links block)
+  const contactLinks: Array<{ platform: 'email' | 'linkedin' | 'github' | 'twitter' | 'website' | 'phone'; url: string }> = []
+  if (content.contact.email) contactLinks.push({ platform: 'email', url: `mailto:${content.contact.email}` })
+  if (content.contact.linkedin) contactLinks.push({ platform: 'linkedin', url: content.contact.linkedin })
+  if (content.contact.github) contactLinks.push({ platform: 'github', url: content.contact.github })
+  if (content.contact.twitter) contactLinks.push({ platform: 'twitter', url: content.contact.twitter })
+  if (content.contact.website) contactLinks.push({ platform: 'website', url: content.contact.website })
+
+  if (contactLinks.length > 0) {
+    sections.push(section('Contact', [col([
+      heading('Get In Touch'),
+      divider(),
+      socialLinks(contactLinks),
+    ])]))
+  }
+
+  return { version: 1, style, sections }
+}
+
+// ─── NEW TEMPLATE VARIATIONS ──────────────────────────────────────────────────
+
+// 1. Academic Resume - Education emphasis with GPA, publications
+export function academicResumePreset(content: ResumeContent): CanvasDocument {
+  const p = content.personal
+  const style: CanvasStyle = {
+    pageWidth: 794, pageBackground: { hex: '#ffffff', opacity: 1 },
+    forceBackground: { hex: '#ffffff', opacity: 1 },
+    pagePaddingX: 0, pagePaddingY: 0, fontFamily: 'Georgia', baseFontSize: 13,
+    primaryColor: { hex: '#1a1a1a', opacity: 1 }, accentColor: { hex: '#1a1a1a', opacity: 1 },
+    textColor: { hex: '#1a1a1a', opacity: 1 }, mutedColor: { hex: '#555555', opacity: 1 },
+  }
+  const sections: CanvasSection[] = []
+
+  // Header
+  sections.push(section('Header', [col([
+    text(p.name || 'Your Name', { fontSize: 24, fontWeight: '700', align: 'center', marginBottom: 4 }),
+    p.title ? text(p.title, { fontSize: 13, align: 'center', color: { hex: '#555555', opacity: 1 }, marginBottom: 6 }) : spacer(0),
+    text([p.email, p.phone].filter(Boolean).join(' · '), { fontSize: 11, align: 'center', color: { hex: '#555555', opacity: 1 } }),
+  ])], { paddingY: 24 }))
+
+  // Education first (academic emphasis)
+  if (content.education.length > 0) {
+    const blocks: CanvasBlock[] = [heading('Education'), divider()]
+    content.education.forEach((edu, i) => {
+      if (i > 0) blocks.push(spacer(10))
+      blocks.push(
+        rowWithRightDate(`<strong>${edu.institution}</strong>`, dateRangeText(edu.startDate, edu.endDate), { fontFamily: 'Georgia', fontSize: 14 }),
+        text(`${edu.degree}${edu.field ? ` in ${edu.field}` : ''}`, { fontSize: 13, fontWeight: '600', marginBottom: 4 }),
+      )
+      if (edu.gpa) blocks.push(stat(edu.gpa, 'GPA'))
+      if (edu.description) blocks.push(text(edu.description, { fontSize: 12, lineHeight: 1.55 }))
+    })
+    sections.push(section('Education', [col(blocks)]))
+  }
+
+  // Experience (condensed)
+  if (content.experience.length > 0) {
+    const blocks: CanvasBlock[] = [heading('Research & Experience'), divider()]
+    content.experience.forEach((exp, i) => {
+      if (i > 0) blocks.push(spacer(8))
+      blocks.push(
+        rowWithRightDate(`<strong>${exp.company}</strong> — ${exp.role}`, dateRangeText(exp.startDate, exp.endDate, exp.current), { fontFamily: 'Georgia', fontSize: 12 }),
+        exp.description ? text(exp.description, { fontSize: 11, lineHeight: 1.5, color: { hex: '#333333', opacity: 1 } }) : spacer(0),
+      )
+    })
+    sections.push(section('Experience', [col(blocks)]))
+  }
+
+  // Skills
+  if (content.skills.length > 0) {
+    const blocks: CanvasBlock[] = [heading('Skills'), divider()]
+    content.skills.forEach(sg => blocks.push(text(`<strong>${sg.category}:</strong> ${sg.skills.join(', ')}`, { fontSize: 11, marginBottom: 4 })))
+    sections.push(section('Skills', [col(blocks)]))
+  }
+
+  // Certifications
+  if (content.certifications.length > 0) {
+    const blocks: CanvasBlock[] = [heading('Certifications & Awards'), divider()]
+    content.certifications.forEach(cert => {
+      blocks.push(badge(cert.name, '#059669'))
+      blocks.push(text(`${cert.issuer} · ${fmtMonth(cert.date) || cert.date}`, { fontSize: 10, color: { hex: '#666', opacity: 1 }, marginBottom: 6 }))
+    })
+    sections.push(section('Certifications', [col(blocks)]))
+  }
+
+  return { version: 1, style, sections }
+}
+
+// 2. Functional Resume - Skills-first with proficiency ratings
+export function functionalResumePreset(content: ResumeContent): CanvasDocument {
+  const p = content.personal
+  const style: CanvasStyle = {
+    pageWidth: 794, pageBackground: { hex: '#ffffff', opacity: 1 },
+    forceBackground: { hex: '#ffffff', opacity: 1 },
+    pagePaddingX: 0, pagePaddingY: 0, fontFamily: 'Inter', baseFontSize: 13,
+    primaryColor: { hex: '#1e3a5f', opacity: 1 }, accentColor: { hex: '#3b82f6', opacity: 1 },
+    textColor: { hex: '#111111', opacity: 1 }, mutedColor: { hex: '#6b7280', opacity: 1 },
+  }
+  const sections: CanvasSection[] = []
+
+  // Header
+  sections.push(section('Header', [col([
+    text(p.name || 'Your Name', { fontSize: 28, fontWeight: '700', marginBottom: 4 }),
+    p.title ? text(p.title, { fontSize: 15, color: { hex: '#6b7280', opacity: 1 }, marginBottom: 8 }) : spacer(0),
+    text([p.email, p.phone, p.location].filter(Boolean).join(' · '), { fontSize: 11, color: { hex: '#6b7280', opacity: 1 } }),
+  ])]))
+
+  // Summary
+  if (p.summary) {
+    sections.push(section('Professional Summary', [col([
+      text(p.summary, { fontSize: 13, lineHeight: 1.7 }),
+    ])]))
+  }
+
+  // Skills FIRST with ratings (functional emphasis)
+  if (content.skills.length > 0) {
+    const blocks: CanvasBlock[] = [heading('Core Competencies'), divider()]
+    content.skills.forEach((sg, i) => {
+      if (i > 0) blocks.push(spacer(12))
+      blocks.push(text(sg.category, { fontSize: 13, fontWeight: '700', color: { hex: '#1e3a5f', opacity: 1 }, marginBottom: 6 }))
+      sg.skills.forEach(skill => {
+        const randomLevel = Math.floor(Math.random() * 2) + 4 // 4 or 5 for demo
+        blocks.push(rating(skill, randomLevel, 5, 'bars'))
+      })
+    })
+    sections.push(section('Skills', [col(blocks)]))
+  }
+
+  // Experience (condensed, achievement-focused)
+  if (content.experience.length > 0) {
+    const blocks: CanvasBlock[] = [heading('Professional Experience'), divider()]
+    content.experience.forEach((exp, i) => {
+      if (i > 0) blocks.push(spacer(8))
+      blocks.push(
+        rowWithRightDate(`<strong>${exp.role}</strong> at ${exp.company}`, dateRangeText(exp.startDate, exp.endDate, exp.current)),
+        exp.description ? text(exp.description, { fontSize: 12, lineHeight: 1.5 }) : spacer(0),
+      )
+    })
+    sections.push(section('Experience', [col(blocks)]))
+  }
+
+  // Education
+  if (content.education.length > 0) {
+    const blocks: CanvasBlock[] = [heading('Education'), divider()]
+    content.education.forEach(edu => {
+      blocks.push(text(`<strong>${edu.degree}</strong>${edu.field ? ` in ${edu.field}` : ''} — ${edu.institution}`, { fontSize: 12, marginBottom: 2 }))
+      blocks.push(text(dateRangeText(edu.startDate, edu.endDate), { fontSize: 11, color: { hex: '#6b7280', opacity: 1 }, marginBottom: 6 }))
+    })
+    sections.push(section('Education', [col(blocks)]))
+  }
+
+  return { version: 1, style, sections }
+}
+
+// 3. Portfolio Timeline - Career progression focused
+export function portfolioTimelinePreset(content: PortfolioContent): CanvasDocument {
+  const style: CanvasStyle = {
+    pageWidth: 794, pageBackground: { hex: '#f9fafb', opacity: 1 },
+    forceBackground: { hex: '#f9fafb', opacity: 1 },
+    pagePaddingX: 0, pagePaddingY: 0, fontFamily: 'Inter', baseFontSize: 13,
+    primaryColor: { hex: '#1e3a5f', opacity: 1 }, accentColor: { hex: '#3b82f6', opacity: 1 },
+    textColor: { hex: '#111111', opacity: 1 }, mutedColor: { hex: '#6b7280', opacity: 1 },
+  }
+  const sections: CanvasSection[] = []
+
+  // Hero
+  sections.push(section('Hero', [col([
+    text(content.hero.headline || 'Your Name', { fontSize: 32, fontWeight: '700', marginBottom: 8 }),
+    content.hero.subheadline ? text(content.hero.subheadline, { fontSize: 16, color: { hex: '#6b7280', opacity: 1 }, lineHeight: 1.6 }) : spacer(0),
+  ])], { paddingY: 40, background: { hex: '#ffffff', opacity: 1 } }))
+
+  // Timeline FIRST (career progression focus)
+  if (content.timeline.length > 0) {
+    sections.push(section('Career Journey', [col([
+      heading('Timeline'),
+      divider(),
+      timeline(content.timeline.map(item => ({
+        year: item.year,
+        title: item.title,
+        subtitle: item.type,
+        description: item.description,
+      }))),
+    ])], { background: { hex: '#ffffff', opacity: 1 } }))
+  }
+
+  // Projects
+  if (content.projects.length > 0) {
+    const blocks: CanvasBlock[] = [heading('Featured Projects'), divider()]
+    content.projects.forEach(proj => {
+      blocks.push(card(proj.name, proj.description, proj.tags))
+      blocks.push(spacer(8))
+    })
+    sections.push(section('Projects', [col(blocks)], { background: { hex: '#ffffff', opacity: 1 } }))
+  }
+
+  // Tech Stack
   if (content.techStack.length > 0) {
     const grouped = content.techStack.reduce((acc, tech) => {
       acc[tech.category] = acc[tech.category] ?? []
       acc[tech.category].push(tech.name)
       return acc
     }, {} as Record<string, string[]>)
-    const blocks: CanvasBlock[] = [heading('Tech Stack'), divider()]
+    const blocks: CanvasBlock[] = [heading('Technologies'), divider()]
     Object.entries(grouped).forEach(([cat, items]) => {
-      blocks.push(text(cat, { fontSize: 11, fontWeight: '600', textTransform: 'uppercase', color: { hex: '#6b7280', opacity: 1 }, letterSpacing: 0.06, marginBottom: 4 }))
+      blocks.push(text(cat, { fontSize: 12, fontWeight: '600', color: { hex: '#1e3a5f', opacity: 1 }, marginBottom: 4 }))
       blocks.push(tags(items))
     })
-    sections.push(section('Tech Stack', [col(blocks)]))
+    sections.push(section('Tech Stack', [col(blocks)], { background: { hex: '#ffffff', opacity: 1 } }))
   }
 
-  if (content.timeline.length > 0) {
-    const blocks: CanvasBlock[] = [heading('Timeline'), divider()]
-    content.timeline.forEach((item, i) => {
-      if (i > 0) blocks.push(spacer(8))
-      blocks.push(
-        text(`<strong>${item.year}</strong> — ${item.title}`, { fontSize: 13, fontWeight: '600', marginBottom: 2 }),
-        text(item.description, { fontSize: 12, color: { hex: '#374151', opacity: 1 } }),
-      )
-    })
-    sections.push(section('Timeline', [col(blocks)]))
+  return { version: 1, style, sections }
+}
+
+// 4. Portfolio Stats - Metrics-heavy with stat blocks
+export function portfolioStatsPreset(content: PortfolioContent): CanvasDocument {
+  const style: CanvasStyle = {
+    pageWidth: 794, pageBackground: { hex: '#ffffff', opacity: 1 },
+    forceBackground: { hex: '#ffffff', opacity: 1 },
+    pagePaddingX: 0, pagePaddingY: 0, fontFamily: 'Inter', baseFontSize: 13,
+    primaryColor: { hex: '#1e3a5f', opacity: 1 }, accentColor: { hex: '#3b82f6', opacity: 1 },
+    textColor: { hex: '#111111', opacity: 1 }, mutedColor: { hex: '#6b7280', opacity: 1 },
   }
+  const sections: CanvasSection[] = []
+
+  // Hero
+  sections.push(section('Hero', [col([
+    text(content.hero.headline || 'Your Name', { fontSize: 28, fontWeight: '700', color: { hex: '#ffffff', opacity: 1 } }),
+    content.hero.subheadline ? text(content.hero.subheadline, { fontSize: 15, color: { hex: '#93c5fd', opacity: 1 } }) : spacer(0),
+  ])], { background: { hex: '#1e3a5f', opacity: 1 }, paddingY: 36 }))
+
+  // Key Stats (extracted from highlights)
+  sections.push(section('Impact', [col(
+    content.about.highlights.map(h => {
+      const parts = h.split(' ')
+      const value = parts[0] || '10+'
+      const label = parts.slice(1).join(' ') || 'Metric'
+      return stat(value, label)
+    })
+  )]))
+
+  // About
+  sections.push(section('About', [col([
+    heading('Background'),
+    divider(),
+    text(content.about.bio, { fontSize: 13, lineHeight: 1.7 }),
+  ])]))
+
+  // Projects with metrics
+  if (content.projects.length > 0) {
+    const blocks: CanvasBlock[] = [heading('Projects'), divider()]
+    content.projects.forEach(proj => {
+      blocks.push(card(proj.name, proj.description, proj.tags))
+      blocks.push(spacer(6))
+    })
+    sections.push(section('Work', [col(blocks)]))
+  }
+
+  // Tech Stack with ratings
+  if (content.techStack.length > 0) {
+    const levelToValue = { beginner: 2, intermediate: 3, advanced: 4, expert: 5 }
+    const blocks: CanvasBlock[] = [heading('Expertise'), divider()]
+    content.techStack.slice(0, 8).forEach(tech => {
+      blocks.push(rating(tech.name, levelToValue[tech.level] || 3, 5, 'stars'))
+    })
+    sections.push(section('Skills', [col(blocks)]))
+  }
+
+  return { version: 1, style, sections }
+}
+
+// 5. Cover Letter Narrative - Story-driven format with card for achievements
+export function coverLetterNarrativePreset(content: CoverLetterContent): CanvasDocument {
+  const h = content.header
+  const style: CanvasStyle = {
+    pageWidth: 794, pageBackground: { hex: '#ffffff', opacity: 1 },
+    forceBackground: { hex: '#ffffff', opacity: 1 },
+    pagePaddingX: 0, pagePaddingY: 0, fontFamily: 'Georgia', baseFontSize: 13,
+    primaryColor: { hex: '#1a1a1a', opacity: 1 }, accentColor: { hex: '#1a1a1a', opacity: 1 },
+    textColor: { hex: '#1a1a1a', opacity: 1 }, mutedColor: { hex: '#555555', opacity: 1 },
+  }
+  const sections: CanvasSection[] = []
+
+  // Header with badge
+  sections.push(section('Header', [col([
+    text(h.senderName, { fontSize: 20, fontWeight: '700', marginBottom: 2 }),
+    text(h.senderTitle, { fontSize: 13, color: { hex: '#555555', opacity: 1 }, marginBottom: 8 }),
+    badge('Applying for: ' + (content.jobTitle || 'Position'), '#3b82f6'),
+    spacer(8),
+    text([h.senderEmail, h.senderPhone].filter(Boolean).join(' · '), { fontSize: 11, color: { hex: '#555555', opacity: 1 } }),
+  ])], { paddingY: 24 }))
+
+  // Date & Recipient
+  sections.push(section('Details', [col([
+    text(fmtMonth(h.date) || h.date, { fontSize: 11, color: { hex: '#666666', opacity: 1 }, marginBottom: 12 }),
+    text(`${h.recipientName || 'Hiring Manager'}${h.recipientTitle ? `, ${h.recipientTitle}` : ''}`, { fontSize: 12, fontWeight: '600', marginBottom: 2 }),
+    text(h.companyName, { fontSize: 12, marginBottom: 4 }),
+    h.companyAddress ? text(h.companyAddress, { fontSize: 11, color: { hex: '#666666', opacity: 1 } }) : spacer(0),
+  ])], { paddingY: 12, paddingX: 40 }))
+
+  // Opening
+  sections.push(section('Opening', [col([
+    text(content.opening, { fontSize: 13, lineHeight: 1.7 }),
+  ])]))
+
+  // Body (narrative with achievement card)
+  sections.push(section('Body', [col([
+    text(content.body, { fontSize: 13, lineHeight: 1.7, marginBottom: 16 }),
+    card('Key Achievement', 'Highlight a specific accomplishment relevant to the role', ['Impact', 'Leadership', 'Results']),
+  ])]))
+
+  // Closing
+  sections.push(section('Closing', [col([
+    text(content.closing, { fontSize: 13, lineHeight: 1.7 }),
+  ])]))
 
   return { version: 1, style, sections }
 }

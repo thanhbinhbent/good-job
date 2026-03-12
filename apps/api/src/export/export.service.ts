@@ -557,9 +557,16 @@ export class ExportService {
     const defaultFontFamily = c.style?.fontFamily;
     const defaultTextColor = c.style?.textColor;
     const pageWidthTwip = this.pxToTwip(this.safePx(c.style?.pageWidth, 794));
-    const pagePaddingXTwip = this.pxToTwip(this.safePx(c.style?.pagePaddingX, 0));
-    const pagePaddingYTwip = this.pxToTwip(this.safePx(c.style?.pagePaddingY, 0));
-    const pageContentWidthTwip = Math.max(2000, pageWidthTwip - pagePaddingXTwip * 2);
+    const pagePaddingXTwip = this.pxToTwip(
+      this.safePx(c.style?.pagePaddingX, 0),
+    );
+    const pagePaddingYTwip = this.pxToTwip(
+      this.safePx(c.style?.pagePaddingY, 0),
+    );
+    const pageContentWidthTwip = Math.max(
+      2000,
+      pageWidthTwip - pagePaddingXTwip * 2,
+    );
 
     const visibleSections = (c.sections ?? []).filter(
       (section) => !section.hidden,
@@ -578,11 +585,22 @@ export class ExportService {
         Math.round(this.safePx(section.border?.width, 0) * 4),
       );
       const borderColor = this.toDocxColor(section.border?.color, 'D1D5DB');
-      const sectionPaddingXTwip = this.pxToTwip(this.safePx(section.paddingX, 40));
+      const sectionPaddingXTwip = this.pxToTwip(
+        this.safePx(section.paddingX, 40),
+      );
       const sectionGapTwip = this.pxToTwip(this.safePx(section.gap, 24));
-      const totalGapTwip = Math.max(0, (section.columns.length - 1) * sectionGapTwip);
-      const sectionInnerWidthTwip = Math.max(1200, pageContentWidthTwip - sectionPaddingXTwip * 2);
-      const columnsUsableWidthTwip = Math.max(1000, sectionInnerWidthTwip - totalGapTwip);
+      const totalGapTwip = Math.max(
+        0,
+        (section.columns.length - 1) * sectionGapTwip,
+      );
+      const sectionInnerWidthTwip = Math.max(
+        1200,
+        pageContentWidthTwip - sectionPaddingXTwip * 2,
+      );
+      const columnsUsableWidthTwip = Math.max(
+        1000,
+        sectionInnerWidthTwip - totalGapTwip,
+      );
       const columnWidthsTwip = section.columns.map((col) =>
         Math.max(
           300,
@@ -596,8 +614,13 @@ export class ExportService {
       const sectionRow = new TableRow({
         children: section.columns.map((column, index) => {
           const colWidthTwip = columnWidthsTwip[index] ?? 1000;
-          const columnPaddingXTwip = this.pxToTwip(this.safePx(column.paddingX, 0));
-          const inlineRowWidthTwip = Math.max(300, colWidthTwip - columnPaddingXTwip * 2);
+          const columnPaddingXTwip = this.pxToTwip(
+            this.safePx(column.paddingX, 0),
+          );
+          const inlineRowWidthTwip = Math.max(
+            300,
+            colWidthTwip - columnPaddingXTwip * 2,
+          );
           const rowItems = this.groupedRows(column.blocks ?? []);
           const cellChildren: Array<Paragraph | Table> = [];
 
@@ -668,7 +691,10 @@ export class ExportService {
                       width: { size: blockWidthTwip, type: WidthType.DXA },
                       margins: {
                         left: blockIndex === 0 ? 0 : this.pxToTwip(3),
-                        right: blockIndex === row.blocks.length - 1 ? 0 : this.pxToTwip(3),
+                        right:
+                          blockIndex === row.blocks.length - 1
+                            ? 0
+                            : this.pxToTwip(3),
                         top: 0,
                         bottom: 0,
                       },
@@ -888,7 +914,9 @@ export class ExportService {
     }
 
     if (c.skills?.length) {
-      children.push(p('Skills', { heading: HeadingLevel.HEADING_2, spacing: 80 }));
+      children.push(
+        p('Skills', { heading: HeadingLevel.HEADING_2, spacing: 80 }),
+      );
       for (const sg of c.skills) {
         children.push(
           p(`${sg.category ?? ''}: ${(sg.skills ?? []).join(', ')}`, {

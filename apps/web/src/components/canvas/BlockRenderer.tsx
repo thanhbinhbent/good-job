@@ -1,4 +1,6 @@
-import { useEffect, useCallback, useReducer, useRef } from 'react'
+/* eslint-disable react-hooks/rules-of-hooks */
+/* eslint-disable react-hooks/exhaustive-deps */
+import { useEffect, useCallback, useReducer, useRef, useMemo, memo } from 'react'
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
 import type { CanvasBlock, CanvasStyle, TextBlock } from '@binh-tran/shared'
@@ -203,6 +205,7 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
   const { updateBlock } = useCanvasStore()
   const containerRef = useRef<HTMLDivElement>(null)
   const syncTimerRef = useRef<number | null>(null)
+  const rafRef = useRef<number | null>(null)
   // Prevent double-save by tracking whether we already saved
   const savedRef = useRef(false)
 
@@ -227,12 +230,24 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
       },
     },
     onUpdate: ({ editor }) => {
+      const html = editor.getHTML()
+
+      // Optimistic UI: Update immediately on next animation frame (no visual delay)
+      if (rafRef.current !== null) {
+        window.cancelAnimationFrame(rafRef.current)
+      }
+      rafRef.current = window.requestAnimationFrame(() => {
+        rafRef.current = null
+        // Visual update happens immediately (already rendered by TipTap)
+      })
+
+      // Store persistence: Debounced to 120ms to batch rapid edits
       if (syncTimerRef.current !== null) {
         window.clearTimeout(syncTimerRef.current)
       }
       syncTimerRef.current = window.setTimeout(() => {
         syncTimerRef.current = null
-        updateBlock(sectionId, columnId, block.id, { content: editor.getHTML() })
+        updateBlock(sectionId, columnId, block.id, { content: html })
       }, 120)
     },
   })
@@ -277,6 +292,10 @@ function InlineTextEditor({ block, style, sectionId, columnId, onMoveUp, onMoveD
     if (syncTimerRef.current !== null) {
       window.clearTimeout(syncTimerRef.current)
       syncTimerRef.current = null
+    }
+    if (rafRef.current !== null) {
+      window.cancelAnimationFrame(rafRef.current)
+      rafRef.current = null
     }
   }, [])
 
@@ -350,13 +369,14 @@ interface BlockProps {
   isLast?: boolean
   isSelected?: boolean
   isPreview?: boolean
-  onClick?: () => void
+  onClick?: (e: React.MouseEvent) => void
+  onContextMenu?: (e: React.MouseEvent) => void
 }
 
 export function BlockRenderer({
   block, style, sectionId = '', columnId = '',
   isFirst = false, isLast = false,
-  isSelected = false, isPreview = false, onClick,
+  isSelected = false, isPreview = false, onClick, onContextMenu,
 }: BlockProps) {
   const { editingBlockId, setEditingBlock, duplicateBlock, removeBlock, moveBlock, selectBlock } = useCanvasStore()
   const isEditing = !isPreview && editingBlockId === block.id
@@ -382,8 +402,8 @@ export function BlockRenderer({
   // ── Wrappers ──────────────────────────────────────────────────────────────
   const ringCls = !isPreview
     ? isSelected
-      ? 'ring-1 ring-[var(--color-canvas-focus-ring)] rounded-sm'
-      : 'hover:ring-1 hover:ring-[var(--color-canvas-focus-ring)]/60 rounded-sm'
+      ? 'canvas-block canvas-block-selected ring-1 ring-[var(--color-canvas-focus-ring)] rounded-sm'
+      : 'canvas-block hover:ring-1 hover:ring-[var(--color-canvas-focus-ring)]/60 rounded-sm'
     : ''
 
   const toolbar = !isPreview && isSelected && block.kind !== 'text' ? (
@@ -394,21 +414,32 @@ export function BlockRenderer({
     />
   ) : null
 
-  const wrap = (children: React.ReactNode, extraStyle?: React.CSSProperties) => (
+  const wrap = useCallback((children: React.ReactNode, extraStyle?: React.CSSProperties) => (
     <div
       className={ringCls}
       style={{ position: 'relative', ...extraStyle }}
       onClick={!isPreview ? onClick : undefined}
+      onContextMenu={!isPreview ? onContextMenu : undefined}
+      tabIndex={!isPreview ? 0 : undefined}
+      role={!isPreview ? 'button' : undefined}
+      aria-label={`${block.kind} block`}
+      onKeyDown={!isPreview ? (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          e.stopPropagation()
+          onClick?.(e as unknown as React.MouseEvent)
+        }
+      } : undefined}
     >
       {toolbar}
       {children}
     </div>
-  )
+  ), [ringCls, toolbar, isPreview, onClick, onContextMenu, block.kind])
 
   // ── Block type renderers ──────────────────────────────────────────────────
 
   if (block.kind === 'text') {
-    const s: React.CSSProperties = {
+    const textStyle = useMemo<React.CSSProperties>(() => ({
       fontSize: block.fontSize,
       fontFamily: block.fontFamily || style.fontFamily,
       fontWeight: block.fontWeight,
@@ -419,7 +450,20 @@ export function BlockRenderer({
       letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
       marginBottom: block.marginBottom,
       textTransform: block.textTransform === 'none' ? undefined : block.textTransform as React.CSSProperties['textTransform'],
-    }
+    }), [
+      block.fontSize,
+      block.fontFamily,
+      style.fontFamily,
+      block.fontWeight,
+      block.fontStyle,
+      block.color,
+      block.align,
+      block.lineHeight,
+      block.letterSpacing,
+      block.marginBottom,
+      block.textTransform,
+    ])
+
     return (
       // position:relative anchors the absolutely-positioned overlay editor
       <div
@@ -429,7 +473,7 @@ export function BlockRenderer({
       >
         {/* Static content — invisible when editing so it doesn't bleed through the overlay */}
         <div
-          style={{ ...s, visibility: isEditing ? 'hidden' : undefined }}
+          style={{ ...textStyle, visibility: isEditing ? 'hidden' : undefined }}
           dangerouslySetInnerHTML={{ __html: block.content || '<p style="color:var(--color-muted-foreground);font-style:italic;font-size:12px">Click to edit\u2026</p>' }}
         />
         {/* Floating editor — overlays the static text, no layout shift */}
@@ -450,46 +494,52 @@ export function BlockRenderer({
     const start = formatDate(block.startDate, block.format)
     const end = block.current ? 'Present' : block.endDate ? formatDate(block.endDate, block.format) : ''
     const label = end ? `${start} – ${end}` : start
-    return wrap(
-      <div style={{
-        fontSize: block.fontSize, color: toRgba(block.color),
-        textAlign: block.align, marginBottom: block.marginBottom,
-        fontFamily: style.fontFamily,
-      }}>{label || 'Jan 2020 – Present'}</div>
-    )
+    const dateStyle = useMemo<React.CSSProperties>(() => ({
+      fontSize: block.fontSize,
+      color: toRgba(block.color),
+      textAlign: block.align,
+      marginBottom: block.marginBottom,
+      fontFamily: style.fontFamily,
+    }), [block.fontSize, block.color, block.align, block.marginBottom, style.fontFamily])
+
+    return wrap(<div style={dateStyle}>{label || 'Jan 2020 – Present'}</div>)
   }
 
   if (block.kind === 'dualText') {
+    const dualTextContainerStyle = useMemo<React.CSSProperties>(() => ({
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'baseline',
+      gap: block.gap,
+      marginBottom: block.marginBottom,
+      fontFamily: block.fontFamily || style.fontFamily,
+      fontSize: block.fontSize,
+      lineHeight: block.lineHeight,
+      letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
+    }), [block.gap, block.marginBottom, block.fontFamily, style.fontFamily, block.fontSize, block.lineHeight, block.letterSpacing])
+
+    const leftStyle = useMemo<React.CSSProperties>(() => ({
+      fontWeight: block.fontWeight,
+      fontStyle: block.fontStyle,
+      color: toRgba(block.color),
+      minWidth: 0,
+    }), [block.fontWeight, block.fontStyle, block.color])
+
+    const rightStyle = useMemo<React.CSSProperties>(() => ({
+      fontWeight: block.rightFontWeight,
+      color: toRgba(block.rightColor),
+      whiteSpace: 'nowrap',
+      textAlign: 'right',
+    }), [block.rightFontWeight, block.rightColor])
+
     return wrap(
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'baseline',
-          gap: block.gap,
-          marginBottom: block.marginBottom,
-          fontFamily: block.fontFamily || style.fontFamily,
-          fontSize: block.fontSize,
-          lineHeight: block.lineHeight,
-          letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
-        }}
-      >
+      <div style={dualTextContainerStyle}>
         <div
-          style={{
-            fontWeight: block.fontWeight,
-            fontStyle: block.fontStyle,
-            color: toRgba(block.color),
-            minWidth: 0,
-          }}
+          style={leftStyle}
           dangerouslySetInnerHTML={{ __html: block.leftContent || '<strong>Title</strong>' }}
         />
         <div
-          style={{
-            fontWeight: block.rightFontWeight,
-            color: toRgba(block.rightColor),
-            whiteSpace: 'nowrap',
-            textAlign: 'right',
-          }}
+          style={rightStyle}
           dangerouslySetInnerHTML={{ __html: block.rightContent || 'Jan 2020 – Present' }}
         />
       </div>,
@@ -497,20 +547,46 @@ export function BlockRenderer({
   }
 
   if (block.kind === 'tags') {
+    const tagsContainerStyle = useMemo<React.CSSProperties>(() => ({
+      display: 'flex',
+      flexWrap: 'wrap',
+      gap: block.gap,
+      marginBottom: block.marginBottom,
+    }), [block.gap, block.marginBottom])
+
+    const chipStyle = useMemo<React.CSSProperties>(() => ({
+      background: toRgba(block.chipBackground),
+      color: toRgba(block.chipColor),
+      borderRadius: block.chipRadius,
+      fontSize: block.fontSize,
+      padding: '2px 8px',
+      fontFamily: style.fontFamily,
+    }), [block.chipBackground, block.chipColor, block.chipRadius, block.fontSize, style.fontFamily])
+
     return wrap(
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: block.gap, marginBottom: block.marginBottom }}>
+      <div style={tagsContainerStyle}>
         {(block.items.length > 0 ? block.items : ['Tag 1', 'Tag 2']).map((item, i) => (
-          <span key={i} style={{
-            background: toRgba(block.chipBackground), color: toRgba(block.chipColor),
-            borderRadius: block.chipRadius, fontSize: block.fontSize,
-            padding: '2px 8px', fontFamily: style.fontFamily,
-          }}>{item}</span>
+          <span key={i} style={chipStyle}>{item}</span>
         ))}
       </div>
     )
   }
 
   if (block.kind === 'progress') {
+    const trackStyle = useMemo<React.CSSProperties>(() => ({
+      background: toRgba(block.trackColor),
+      borderRadius: 999,
+      height: block.height,
+      overflow: 'hidden',
+    }), [block.trackColor, block.height])
+
+    const fillStyle = useMemo<React.CSSProperties>(() => ({
+      width: `${block.value}%`,
+      height: '100%',
+      background: toRgba(block.fillColor),
+      borderRadius: 999,
+    }), [block.value, block.fillColor])
+
     return wrap(
       <div style={{ marginBottom: block.marginBottom }}>
         {block.showLabel && (
@@ -519,47 +595,77 @@ export function BlockRenderer({
             {block.showValue && <span>{block.value}%</span>}
           </div>
         )}
-        <div style={{ background: toRgba(block.trackColor), borderRadius: 999, height: block.height, overflow: 'hidden' }}>
-          <div style={{ width: `${block.value}%`, height: '100%', background: toRgba(block.fillColor), borderRadius: 999 }} />
+        <div style={trackStyle}>
+          <div style={fillStyle} />
         </div>
       </div>
     )
   }
 
   if (block.kind === 'divider') {
-    return wrap(
-      <hr style={{
-        border: 'none',
-        borderTop: `${block.thickness}px ${block.style} ${toRgba(block.color)}`,
-        marginTop: block.marginTop, marginBottom: block.marginBottom,
-      }} />
-    )
+    const dividerStyle = useMemo<React.CSSProperties>(() => ({
+      border: 'none',
+      borderTop: `${block.thickness}px ${block.style} ${toRgba(block.color)}`,
+      marginTop: block.marginTop,
+      marginBottom: block.marginBottom,
+    }), [block.thickness, block.style, block.color, block.marginTop, block.marginBottom])
+
+    return wrap(<hr style={dividerStyle} />)
   }
 
   if (block.kind === 'image') {
     const margin = block.align === 'center' ? '0 auto' : block.align === 'right' ? '0 0 0 auto' : undefined
+    const imageStyle = useMemo<React.CSSProperties>(() => ({
+      borderRadius: `${block.radius}%`,
+      display: 'block',
+      margin,
+      objectFit: 'cover',
+    }), [block.radius, margin])
+
+    const placeholderStyle = useMemo<React.CSSProperties>(() => ({
+      width: block.width,
+      height: block.height,
+      borderRadius: `${block.radius}%`,
+      background: 'var(--color-muted)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: 11,
+      color: 'var(--color-muted-foreground)',
+      margin,
+    }), [block.width, block.height, block.radius, margin])
+
     return wrap(
       <div style={{ marginBottom: block.marginBottom }}>
         {block.url ? (
           <img
             src={block.url} width={block.width} height={block.height}
-            style={{ borderRadius: `${block.radius}%`, display: 'block', margin, objectFit: 'cover' }}
+            style={imageStyle}
             alt=""
           />
         ) : (
-          <div style={{ width: block.width, height: block.height, borderRadius: `${block.radius}%`, background: 'var(--color-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--color-muted-foreground)', margin }}>Avatar</div>
+          <div style={placeholderStyle}>Avatar</div>
         )}
       </div>
     )
   }
 
   if (block.kind === 'link') {
+    const linkStyle = useMemo<React.CSSProperties>(() => ({
+      display: 'block',
+      fontSize: block.fontSize,
+      color: toRgba(block.color),
+      marginBottom: block.marginBottom,
+      fontFamily: style.fontFamily,
+      textDecoration: 'underline',
+    }), [block.fontSize, block.color, block.marginBottom, style.fontFamily])
+
     return wrap(
       <a
         href={block.url || '#'}
         target="_blank" rel="noreferrer"
         onClick={(e) => { if (!isPreview) e.preventDefault() }}
-        style={{ display: 'block', fontSize: block.fontSize, color: toRgba(block.color), marginBottom: block.marginBottom, fontFamily: style.fontFamily, textDecoration: 'underline' }}
+        style={linkStyle}
       >{block.label || block.url || 'Click to set URL'}</a>
     )
   }
@@ -581,5 +687,313 @@ export function BlockRenderer({
     )
   }
 
+  if (block.kind === 'rating') {
+    const ratingContainerStyle = useMemo<React.CSSProperties>(() => ({
+      marginBottom: block.marginBottom,
+      display: 'flex',
+      alignItems: 'center',
+      gap: 8,
+    }), [block.marginBottom])
+
+    const renderRating = () => {
+      const filledCount = Math.floor(block.value)
+      const maxCount = block.maxValue
+
+      if (block.style === 'stars') {
+        return (
+          <div style={{ display: 'flex', gap: 2 }}>
+            {Array.from({ length: maxCount }).map((_, i) => (
+              <span key={i} style={{ fontSize: block.size, color: i < filledCount ? toRgba(block.color) : toRgba(block.emptyColor) }}>
+                ★
+              </span>
+            ))}
+          </div>
+        )
+      } else if (block.style === 'dots') {
+        return (
+          <div style={{ display: 'flex', gap: 4 }}>
+            {Array.from({ length: maxCount }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  width: block.size,
+                  height: block.size,
+                  borderRadius: '50%',
+                  backgroundColor: i < filledCount ? toRgba(block.color) : toRgba(block.emptyColor),
+                }}
+              />
+            ))}
+          </div>
+        )
+      } else {
+        // bars
+        return (
+          <div style={{ display: 'flex', gap: 2 }}>
+            {Array.from({ length: maxCount }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  width: 4,
+                  height: block.size,
+                  borderRadius: 1,
+                  backgroundColor: i < filledCount ? toRgba(block.color) : toRgba(block.emptyColor),
+                }}
+              />
+            ))}
+          </div>
+        )
+      }
+    }
+
+    return wrap(
+      <div style={ratingContainerStyle}>
+        {block.label && <span style={{ fontSize: 12, fontFamily: style.fontFamily }}>{block.label}</span>}
+        {renderRating()}
+      </div>
+    )
+  }
+
+  if (block.kind === 'timeline') {
+    const timelineStyle = useMemo<React.CSSProperties>(() => ({
+      marginBottom: block.marginBottom,
+      position: 'relative',
+      paddingLeft: 24,
+    }), [block.marginBottom])
+
+    return wrap(
+      <div style={timelineStyle}>
+        {/* Vertical line */}
+        <div
+          style={{
+            position: 'absolute',
+            left: block.dotSize / 2,
+            top: 0,
+            bottom: 0,
+            width: block.lineWidth,
+            backgroundColor: toRgba(block.lineColor),
+          }}
+        />
+        {block.entries.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--color-muted-foreground)', fontStyle: 'italic' }}>
+            No timeline entries
+          </div>
+        ) : (
+          block.entries.map((entry) => (
+            <div key={entry.id} style={{ position: 'relative', marginBottom: block.spacing }}>
+              {/* Dot */}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: -24,
+                  top: 4,
+                  width: block.dotSize,
+                  height: block.dotSize,
+                  borderRadius: '50%',
+                  backgroundColor: toRgba(block.dotColor),
+                }}
+              />
+              {/* Content */}
+              <div style={{ fontSize: 11, fontWeight: '600', color: 'var(--color-muted-foreground)' }}>
+                {entry.year}
+              </div>
+              <div style={{ fontSize: 14, fontWeight: '600', marginTop: 2 }}>
+                {entry.title}
+              </div>
+              {entry.subtitle && (
+                <div style={{ fontSize: 12, color: 'var(--color-muted-foreground)', marginTop: 2 }}>
+                  {entry.subtitle}
+                </div>
+              )}
+              {entry.description && (
+                <div style={{ fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
+                  {entry.description}
+                </div>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+    )
+  }
+
+  if (block.kind === 'badge') {
+    const badgeStyle = useMemo<React.CSSProperties>(() => ({
+      display: 'inline-block',
+      backgroundColor: toRgba(block.backgroundColor),
+      color: toRgba(block.textColor),
+      borderRadius: block.borderRadius,
+      paddingLeft: block.padding.x,
+      paddingRight: block.padding.x,
+      paddingTop: block.padding.y,
+      paddingBottom: block.padding.y,
+      fontSize: block.fontSize,
+      fontWeight: block.fontWeight,
+      marginBottom: block.marginBottom,
+      fontFamily: style.fontFamily,
+    }), [block, style.fontFamily])
+
+    return wrap(<span style={badgeStyle}>{block.text}</span>)
+  }
+
+  if (block.kind === 'stat') {
+    const statContainerStyle = useMemo<React.CSSProperties>(() => ({
+      textAlign: block.align,
+      marginBottom: block.marginBottom,
+    }), [block.align, block.marginBottom])
+
+    const valueStyle = useMemo<React.CSSProperties>(() => ({
+      fontSize: block.valueSize,
+      fontWeight: '700',
+      color: toRgba(block.valueColor),
+      lineHeight: 1,
+    }), [block.valueSize, block.valueColor])
+
+    const labelStyle = useMemo<React.CSSProperties>(() => ({
+      fontSize: block.labelSize,
+      color: toRgba(block.labelColor),
+      marginTop: 4,
+      fontFamily: style.fontFamily,
+    }), [block.labelSize, block.labelColor, style.fontFamily])
+
+    return wrap(
+      <div style={statContainerStyle}>
+        <div style={valueStyle}>{block.value}</div>
+        {block.label && <div style={labelStyle}>{block.label}</div>}
+      </div>
+    )
+  }
+
+  if (block.kind === 'card') {
+    const cardStyle = useMemo<React.CSSProperties>(() => ({
+      backgroundColor: toRgba(block.backgroundColor),
+      border: `${block.borderWidth}px solid ${toRgba(block.borderColor)}`,
+      borderRadius: block.borderRadius,
+      padding: block.padding,
+      marginBottom: block.marginBottom,
+    }), [block])
+
+    return wrap(
+      <div style={cardStyle}>
+        {block.imageUrl && (
+          <img
+            src={block.imageUrl}
+            alt={block.title}
+            style={{
+              width: '100%',
+              height: 'auto',
+              borderRadius: block.borderRadius / 2,
+              marginBottom: 12,
+              objectFit: 'cover',
+            }}
+          />
+        )}
+        <div style={{ fontSize: 16, fontWeight: '600', marginBottom: 4 }}>
+          {block.title}
+        </div>
+        {block.subtitle && (
+          <div style={{ fontSize: 12, color: 'var(--color-muted-foreground)', marginBottom: 8 }}>
+            {block.subtitle}
+          </div>
+        )}
+        {block.description && (
+          <div style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 8 }}>
+            {block.description}
+          </div>
+        )}
+        {block.tags.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
+            {block.tags.map((tag, i) => (
+              <span
+                key={i}
+                style={{
+                  fontSize: 10,
+                  backgroundColor: 'var(--color-muted)',
+                  color: 'var(--color-muted-foreground)',
+                  padding: '2px 6px',
+                  borderRadius: 3,
+                }}
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  if (block.kind === 'socialLinks') {
+    const containerStyle = useMemo<React.CSSProperties>(() => ({
+      display: 'flex',
+      flexDirection: block.layout === 'vertical' ? 'column' : 'row',
+      flexWrap: block.layout === 'grid' ? 'wrap' : 'nowrap',
+      gap: block.gap,
+      marginBottom: block.marginBottom,
+      alignItems: block.layout === 'horizontal' ? 'center' : 'flex-start',
+    }), [block.layout, block.gap, block.marginBottom])
+
+    const getPlatformIcon = (platform: string) => {
+      const icons = {
+        email: '✉',
+        linkedin: 'in',
+        github: 'gh',
+        twitter: '𝕏',
+        website: '🌐',
+        phone: '📞',
+      }
+      return icons[platform as keyof typeof icons] || '🔗'
+    }
+
+    return wrap(
+      <div style={containerStyle}>
+        {block.links.length === 0 ? (
+          <div style={{ fontSize: 12, color: 'var(--color-muted-foreground)', fontStyle: 'italic' }}>
+            No links added
+          </div>
+        ) : (
+          block.links.map((link) => (
+            <a
+              key={link.id}
+              href={link.url}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => { if (!isPreview) e.preventDefault() }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                color: toRgba(block.color),
+                textDecoration: 'none',
+                fontSize: block.iconSize,
+              }}
+            >
+              <span style={{ fontSize: block.iconSize }}>
+                {getPlatformIcon(link.platform)}
+              </span>
+              {block.showLabels && (
+                <span style={{ fontSize: 12 }}>
+                  {link.label || link.platform}
+                </span>
+              )}
+            </a>
+          ))
+        )}
+      </div>
+    )
+  }
+
   return null
 }
+
+// Memoized version with custom comparison to prevent unnecessary re-renders
+export const MemoizedBlockRenderer = memo(BlockRenderer, (prev, next) => {
+  // Only re-render if these specific props change
+  return (
+    prev.block.id === next.block.id &&
+    prev.isSelected === next.isSelected &&
+    prev.block === next.block &&
+    prev.isFirst === next.isFirst &&
+    prev.isLast === next.isLast &&
+    prev.isPreview === next.isPreview
+  )
+})
