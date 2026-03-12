@@ -7,6 +7,13 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Trash2, ChevronDown, ChevronUp } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import { useState } from 'react'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 type Props = {
   content: PortfolioContent
@@ -203,13 +210,18 @@ export function PortfolioEditor({ content, isAdmin, onSave }: Props) {
                 <InlineEdit value={tech.name} onSave={(v) => updateTech(tech.id, { name: v })} isAdmin={isAdmin} placeholder="Tech name…" />
                 <InlineEdit value={tech.category} onSave={(v) => updateTech(tech.id, { category: v })} isAdmin={isAdmin} placeholder="Category…" />
                 {isAdmin ? (
-                  <select
-                    className="text-sm bg-transparent border-b border-border text-foreground"
-                    value={tech.level}
-                    onChange={(e) => updateTech(tech.id, { level: e.target.value as TechStackItem['level'] })}
-                  >
-                    {TECHNIQUE_LEVELS.map((l) => <option key={l} value={l}>{l}</option>)}
-                  </select>
+                  <Select value={tech.level} onValueChange={(v) => updateTech(tech.id, { level: v as TechStackItem['level'] })}>
+                    <SelectTrigger size="sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TECHNIQUE_LEVELS.map((l) => (
+                        <SelectItem key={l} value={l}>
+                          {l}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <Badge variant="outline" className="w-fit text-xs">{tech.level}</Badge>
                 )}
@@ -250,13 +262,18 @@ export function PortfolioEditor({ content, isAdmin, onSave }: Props) {
               </FieldRow>
               <FieldRow label="Type">
                 {isAdmin ? (
-                  <select
-                    className="text-sm bg-transparent border-b border-border text-foreground"
-                    value={item.type}
-                    onChange={(e) => updateTimeline(item.id, { type: e.target.value as TimelineItem['type'] })}
-                  >
-                    {TIMELINE_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                  <Select value={item.type} onValueChange={(v) => updateTimeline(item.id, { type: v as TimelineItem['type'] })}>
+                    <SelectTrigger size="sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TIMELINE_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 ) : (
                   <Badge variant="outline" className="text-xs">{item.type}</Badge>
                 )}

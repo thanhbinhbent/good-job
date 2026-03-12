@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
 
 type InlineEditProps = {
@@ -77,5 +78,5 @@ export function InlineEdit({
     },
   };
 
-  return <Input {...commonProps} />;
+  return as === 'textarea' ? <Textarea {...commonProps} /> : <Input {...commonProps} />;
 }
