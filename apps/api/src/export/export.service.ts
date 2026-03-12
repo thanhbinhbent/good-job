@@ -9,6 +9,7 @@ import {
   Table,
   TableCell,
   TableRow,
+  TableLayoutType,
   WidthType,
   BorderStyle,
 } from 'docx';
@@ -146,6 +147,7 @@ type CanvasSection = {
 type CanvasContent = {
   version?: number;
   style?: {
+    pageWidth?: number;
     pagePaddingX?: number;
     pagePaddingY?: number;
     fontFamily?: string;
@@ -304,6 +306,7 @@ export class ExportService {
     block: CanvasBlock,
     defaultFontFamily?: string,
     defaultTextColor?: CanvasColor,
+    overrideAlign?: 'left' | 'center' | 'right' | 'justify',
   ): Paragraph[] {
     const baseFontSize = this.pxToHalfPoint(this.safePx(block.fontSize, 14));
     const baseColor = this.toDocxColor(
@@ -311,7 +314,7 @@ export class ExportService {
       '111111',
     );
     const spacingAfter = this.pxToTwip(this.safePx(block.marginBottom, 4));
-    const alignment = this.mapAlignment(block.align);
+    const alignment = this.mapAlignment(overrideAlign ?? block.align);
     const font = block.fontFamily || defaultFontFamily;
 
     if (block.kind === 'text') {
@@ -553,8 +556,10 @@ export class ExportService {
     const children: Array<Paragraph | Table> = [];
     const defaultFontFamily = c.style?.fontFamily;
     const defaultTextColor = c.style?.textColor;
+    const pageWidthTwip = this.pxToTwip(this.safePx(c.style?.pageWidth, 794));
     const pagePaddingXTwip = this.pxToTwip(this.safePx(c.style?.pagePaddingX, 0));
     const pagePaddingYTwip = this.pxToTwip(this.safePx(c.style?.pagePaddingY, 0));
+    const pageContentWidthTwip = Math.max(2000, pageWidthTwip - pagePaddingXTwip * 2);
 
     const visibleSections = (c.sections ?? []).filter(
       (section) => !section.hidden,
@@ -573,16 +578,26 @@ export class ExportService {
         Math.round(this.safePx(section.border?.width, 0) * 4),
       );
       const borderColor = this.toDocxColor(section.border?.color, 'D1D5DB');
+      const sectionPaddingXTwip = this.pxToTwip(this.safePx(section.paddingX, 40));
+      const sectionGapTwip = this.pxToTwip(this.safePx(section.gap, 24));
+      const totalGapTwip = Math.max(0, (section.columns.length - 1) * sectionGapTwip);
+      const sectionInnerWidthTwip = Math.max(1200, pageContentWidthTwip - sectionPaddingXTwip * 2);
+      const columnsUsableWidthTwip = Math.max(1000, sectionInnerWidthTwip - totalGapTwip);
+      const columnWidthsTwip = section.columns.map((col) =>
+        Math.max(
+          300,
+          Math.round(
+            (Math.max(0.1, this.safePx(col.weight, 1)) / totalWeight) *
+              columnsUsableWidthTwip,
+          ),
+        ),
+      );
 
       const sectionRow = new TableRow({
         children: section.columns.map((column, index) => {
-          const widthPercent = Math.max(
-            5,
-            Math.round(
-              (Math.max(0.1, this.safePx(column.weight, 1)) / totalWeight) *
-                100,
-            ),
-          );
+          const colWidthTwip = columnWidthsTwip[index] ?? 1000;
+          const columnPaddingXTwip = this.pxToTwip(this.safePx(column.paddingX, 0));
+          const inlineRowWidthTwip = Math.max(300, colWidthTwip - columnPaddingXTwip * 2);
           const rowItems = this.groupedRows(column.blocks ?? []);
           const cellChildren: Array<Paragraph | Table> = [];
 
@@ -609,7 +624,8 @@ export class ExportService {
             );
 
             const inlineTable = new Table({
-              width: { size: 100, type: WidthType.PERCENTAGE },
+              layout: TableLayoutType.FIXED,
+              width: { size: inlineRowWidthTwip, type: WidthType.DXA },
               borders: {
                 top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
                 right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
@@ -628,25 +644,32 @@ export class ExportService {
               },
               rows: [
                 new TableRow({
-                  children: row.blocks.map((block) => {
-                    const blockWidth = Math.max(
-                      10,
+                  children: row.blocks.map((block, blockIndex) => {
+                    const blockWidthTwip = Math.max(
+                      180,
                       Math.round(
                         (Math.max(20, this.safePx(block.rowWidth, 100)) /
                           totalRowWidth) *
-                          100,
+                          inlineRowWidthTwip,
                       ),
                     );
+                    const forceRight =
+                      row.blocks.length > 1 &&
+                      blockIndex === row.blocks.length - 1 &&
+                      (block.kind === 'date' || block.kind === 'link') &&
+                      (!block.align || block.align === 'left');
                     const paragraphs = this.blockParagraphs(
                       block,
                       defaultFontFamily,
                       defaultTextColor,
+                      forceRight ? 'right' : undefined,
                     );
                     return new TableCell({
-                      width: { size: blockWidth, type: WidthType.PERCENTAGE },
+                      width: { size: blockWidthTwip, type: WidthType.DXA },
                       margins: {
-                        left: index === 0 ? 0 : this.pxToTwip(3),
-                        right: this.pxToTwip(3),
+                        left: blockIndex === 0 ? 0 : this.pxToTwip(3),
+                        right: blockIndex === row.blocks.length - 1 ? 0 : this.pxToTwip(3),
+                        top: 0,
                         bottom: 0,
                       },
                       children: paragraphs.length
@@ -662,7 +685,7 @@ export class ExportService {
           }
 
           return new TableCell({
-            width: { size: widthPercent, type: WidthType.PERCENTAGE },
+            width: { size: colWidthTwip, type: WidthType.DXA },
             margins: {
               top: this.pxToTwip(
                 this.safePx(section.paddingY, 16) +
@@ -734,16 +757,9 @@ export class ExportService {
 
       children.push(
         new Table({
-          width: { size: 100, type: WidthType.PERCENTAGE },
-          columnWidths: section.columns.map((col) =>
-            Math.max(
-              100,
-              Math.round(
-                (Math.max(0.1, this.safePx(col.weight, 1)) / totalWeight) *
-                  5000,
-              ),
-            ),
-          ),
+          layout: TableLayoutType.FIXED,
+          width: { size: sectionInnerWidthTwip, type: WidthType.DXA },
+          columnWidths: columnWidthsTwip,
           borders: {
             top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
             right: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },

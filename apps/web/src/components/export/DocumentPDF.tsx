@@ -1,4 +1,5 @@
-import { Document as PDFDocument, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer'
+import { Document as PDFDocument, Page, View, Text, Image, StyleSheet, Font } from '@react-pdf/renderer'
+import geistFontUrl from '@fontsource-variable/geist/files/geist-latin-wght-normal.woff2?url'
 import type {
   CanvasDocument,
   CanvasBlock,
@@ -63,8 +64,35 @@ function safeBorderWidth(value: unknown): number {
   return 0
 }
 
-function mapPdfFontFamily(font?: string): 'Helvetica' | 'Times-Roman' | 'Courier' {
-  const f = (font ?? '').toLowerCase()
+const PDF_SANS_FONTS = [
+  'Geist',
+  'Inter',
+  'Roboto',
+  'Open Sans',
+  'Lato',
+  'Raleway',
+  'Montserrat',
+] as const
+
+const PDF_SANS_FONT_MAP: Record<string, string> = PDF_SANS_FONTS.reduce((acc, family) => {
+  acc[family.toLowerCase()] = family
+  return acc
+}, {} as Record<string, string>)
+
+let pdfFontsRegistered = false
+
+function ensurePdfFontsRegistered(): void {
+  if (pdfFontsRegistered) return
+  for (const family of PDF_SANS_FONTS) {
+    Font.register({ family, src: geistFontUrl })
+  }
+  pdfFontsRegistered = true
+}
+
+function mapPdfFontFamily(font?: string): string {
+  const raw = (font ?? '').trim()
+  const f = raw.toLowerCase()
+  if (PDF_SANS_FONT_MAP[f]) return PDF_SANS_FONT_MAP[f]
   if (f.includes('times') || f.includes('georgia') || f.includes('garamond') || f.includes('merriweather') || f.includes('playfair')) {
     return 'Times-Roman'
   }
@@ -95,6 +123,7 @@ function groupedRows(blocks: CanvasDocument['sections'][number]['columns'][numbe
 }
 
 export function CanvasPDF({ content }: { content: CanvasDocument }) {
+  ensurePdfFontsRegistered()
   const docFont = mapPdfFontFamily(content.style.fontFamily)
 
   const renderBlock = (block: CanvasBlock) => {
