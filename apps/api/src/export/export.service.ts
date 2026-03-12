@@ -146,6 +146,8 @@ type CanvasSection = {
 type CanvasContent = {
   version?: number;
   style?: {
+    pagePaddingX?: number;
+    pagePaddingY?: number;
     fontFamily?: string;
     baseFontSize?: number;
     textColor?: CanvasColor;
@@ -551,33 +553,14 @@ export class ExportService {
     const children: Array<Paragraph | Table> = [];
     const defaultFontFamily = c.style?.fontFamily;
     const defaultTextColor = c.style?.textColor;
-    const defaultBaseFont = this.pxToHalfPoint(
-      this.safePx(c.style?.baseFontSize, 14),
-    );
+    const pagePaddingXTwip = this.pxToTwip(this.safePx(c.style?.pagePaddingX, 0));
+    const pagePaddingYTwip = this.pxToTwip(this.safePx(c.style?.pagePaddingY, 0));
 
     const visibleSections = (c.sections ?? []).filter(
       (section) => !section.hidden,
     );
 
     for (const section of visibleSections) {
-      if (section.label) {
-        children.push(
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: section.label,
-                size: Math.max(defaultBaseFont + 4, 24),
-                bold: true,
-                font: defaultFontFamily,
-                color: this.toDocxColor(defaultTextColor, '111111'),
-              }),
-            ],
-            heading: HeadingLevel.HEADING_2,
-            spacing: { after: this.pxToTwip(8) },
-          }),
-        );
-      }
-
       const totalWeight = Math.max(
         1,
         section.columns.reduce(
@@ -585,7 +568,6 @@ export class ExportService {
           0,
         ),
       );
-      const gapTwip = this.pxToTwip(this.safePx(section.gap, 24) / 2);
       const borderWidth = Math.max(
         0,
         Math.round(this.safePx(section.border?.width, 0) * 4),
@@ -783,12 +765,24 @@ export class ExportService {
       );
 
       children.push(new Paragraph({ spacing: { after: this.pxToTwip(6) } }));
-      void gapTwip;
     }
 
     return new Document({
       sections: [
         {
+          properties: {
+            page: {
+              margin: {
+                top: pagePaddingYTwip,
+                right: pagePaddingXTwip,
+                bottom: pagePaddingYTwip,
+                left: pagePaddingXTwip,
+                header: 0,
+                footer: 0,
+                gutter: 0,
+              },
+            },
+          },
           children,
         },
       ],
