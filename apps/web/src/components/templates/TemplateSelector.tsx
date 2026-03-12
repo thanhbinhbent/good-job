@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Check, Layout } from 'lucide-react'
@@ -36,6 +36,9 @@ export function TemplateSelector({ documentType, currentTemplateId, content, tit
         <DialogContent className="max-w-5xl h-[80vh] flex flex-col p-0 gap-0">
           <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
             <DialogTitle>Choose Template</DialogTitle>
+            <DialogDescription className="sr-only">
+              Select a template and preview it before applying.
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex flex-1 min-h-0">

@@ -1,5 +1,7 @@
-import { Document as PDFDocument, Page, View, Text, StyleSheet } from '@react-pdf/renderer'
+import { Document as PDFDocument, Page, View, Text, Image, StyleSheet } from '@react-pdf/renderer'
 import type {
+  CanvasDocument,
+  CanvasBlock,
   ResumeContent,
   PortfolioContent,
   CoverLetterContent,
@@ -20,6 +22,255 @@ const styles = StyleSheet.create({
 
 function stripHtml(html: string): string {
   return html.replace(/<[^>]*>/g, '').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ')
+}
+
+function sanitizeText(input?: string): string {
+  if (!input) return ''
+  return input
+    .replace(/<\s*br\s*\/?\s*>/gi, '\n')
+    .replace(/<\s*\/p\s*>/gi, '\n')
+    .replace(/<\s*\/h[1-6]\s*>/gi, '\n')
+    .replace(/<\s*\/li\s*>/gi, '\n')
+    .replace(/<\s*li\b[^>]*>/gi, '• ')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
+}
+
+function toHex6(input?: string): string {
+  const raw = (input ?? '').trim()
+  if (/^#[0-9a-fA-F]{6}$/.test(raw)) return raw
+  if (/^#[0-9a-fA-F]{3}$/.test(raw)) return `#${raw[1]}${raw[1]}${raw[2]}${raw[2]}${raw[3]}${raw[3]}`
+  return '#000000'
+}
+
+function colorToRgba(color?: { hex?: string; opacity?: number }): string {
+  const hex = toHex6(color?.hex)
+  const r = Number.parseInt(hex.slice(1, 3), 16)
+  const g = Number.parseInt(hex.slice(3, 5), 16)
+  const b = Number.parseInt(hex.slice(5, 7), 16)
+  const opacity = Math.max(0, Math.min(1, color?.opacity ?? 1))
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`
+}
+
+function safeBorderWidth(value: unknown): number {
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value
+  return 0
+}
+
+function mapPdfFontFamily(font?: string): 'Helvetica' | 'Times-Roman' | 'Courier' {
+  const f = (font ?? '').toLowerCase()
+  if (f.includes('times') || f.includes('georgia') || f.includes('garamond') || f.includes('merriweather') || f.includes('playfair')) {
+    return 'Times-Roman'
+  }
+  if (f.includes('mono') || f.includes('code') || f.includes('courier') || f.includes('jetbrains')) {
+    return 'Courier'
+  }
+  return 'Helvetica'
+}
+
+type CanvasRow = { id: string; blocks: CanvasDocument['sections'][number]['columns'][number]['blocks'] }
+
+function groupedRows(blocks: CanvasDocument['sections'][number]['columns'][number]['blocks']): CanvasRow[] {
+  const rows: CanvasRow[] = []
+  for (const block of blocks) {
+    const rowId = block.rowId?.trim()
+    if (!rowId) {
+      rows.push({ id: block.id, blocks: [block] })
+      continue
+    }
+    const prev = rows[rows.length - 1]
+    if (prev && prev.id === `row:${rowId}`) {
+      prev.blocks.push(block)
+    } else {
+      rows.push({ id: `row:${rowId}`, blocks: [block] })
+    }
+  }
+  return rows
+}
+
+export function CanvasPDF({ content }: { content: CanvasDocument }) {
+  const docFont = mapPdfFontFamily(content.style.fontFamily)
+
+  const renderBlock = (block: CanvasBlock) => {
+    if (block.kind === 'text') {
+      return (
+        <Text
+          key={block.id}
+          style={{
+            fontFamily: mapPdfFontFamily(block.fontFamily || content.style.fontFamily),
+            fontSize: block.fontSize,
+            fontWeight: block.fontWeight,
+            fontStyle: block.fontStyle,
+            color: colorToRgba(block.color),
+            textAlign: block.align,
+            lineHeight: block.lineHeight,
+            letterSpacing: block.letterSpacing,
+            marginBottom: block.marginBottom,
+            textTransform: block.textTransform === 'none' ? undefined : block.textTransform,
+          }}
+        >
+          {sanitizeText(block.content)}
+        </Text>
+      )
+    }
+
+    if (block.kind === 'dualText') {
+      return (
+        <View key={block.id} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', columnGap: block.gap, marginBottom: block.marginBottom }}>
+          <Text style={{ flexGrow: 1, fontFamily: mapPdfFontFamily(block.fontFamily || content.style.fontFamily), fontSize: block.fontSize, fontWeight: block.fontWeight, fontStyle: block.fontStyle, color: colorToRgba(block.color), lineHeight: block.lineHeight, letterSpacing: block.letterSpacing }}>
+            {sanitizeText(block.leftContent)}
+          </Text>
+          <Text style={{ fontFamily: mapPdfFontFamily(block.fontFamily || content.style.fontFamily), fontSize: block.fontSize, fontWeight: block.rightFontWeight, color: colorToRgba(block.rightColor), lineHeight: block.lineHeight, letterSpacing: block.letterSpacing }}>
+            {sanitizeText(block.rightContent)}
+          </Text>
+        </View>
+      )
+    }
+
+    if (block.kind === 'date') {
+      const end = block.current ? 'Present' : (block.endDate ?? '')
+      const label = [block.startDate, end].filter(Boolean).join(' – ')
+      return <Text key={block.id} style={{ fontFamily: docFont, fontSize: block.fontSize, color: colorToRgba(block.color), textAlign: block.align, marginBottom: block.marginBottom }}>{label}</Text>
+    }
+
+    if (block.kind === 'tags') {
+      return (
+        <View key={block.id} style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: block.gap, rowGap: block.gap, marginBottom: block.marginBottom }}>
+          {block.items.map((item, i) => (
+            <Text key={`${block.id}-${i}`} style={{ backgroundColor: colorToRgba(block.chipBackground), color: colorToRgba(block.chipColor), borderRadius: block.chipRadius, fontSize: block.fontSize, paddingHorizontal: 6, paddingVertical: 2 }}>
+              {item}
+            </Text>
+          ))}
+        </View>
+      )
+    }
+
+    if (block.kind === 'progress') {
+      return (
+        <View key={block.id} style={{ marginBottom: block.marginBottom }}>
+          {block.showLabel && (
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
+              <Text style={{ fontSize: 10 }}>{block.label}</Text>
+              {block.showValue && <Text style={{ fontSize: 10 }}>{block.value}%</Text>}
+            </View>
+          )}
+          <View style={{ height: block.height, borderRadius: 999, backgroundColor: colorToRgba(block.trackColor) }}>
+            <View style={{ width: `${block.value}%`, height: block.height, borderRadius: 999, backgroundColor: colorToRgba(block.fillColor) }} />
+          </View>
+        </View>
+      )
+    }
+
+    if (block.kind === 'divider') {
+      const thickness = safeBorderWidth(block.thickness)
+      return <View key={block.id} style={{ height: thickness, backgroundColor: colorToRgba(block.color), marginTop: block.marginTop, marginBottom: block.marginBottom }} />
+    }
+
+    if (block.kind === 'image') {
+      if (block.url) {
+        return <Image key={block.id} src={block.url} style={{ width: block.width, height: block.height, borderRadius: `${block.radius}%`, marginBottom: block.marginBottom, alignSelf: block.align === 'center' ? 'center' : (block.align === 'right' ? 'flex-end' : 'flex-start') }} />
+      }
+      return (
+        <View key={block.id} style={{ width: block.width, height: block.height, borderRadius: `${block.radius}%`, marginBottom: block.marginBottom, alignSelf: block.align === 'center' ? 'center' : (block.align === 'right' ? 'flex-end' : 'flex-start'), backgroundColor: '#e2e8f0', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 8, color: '#64748b' }}>Avatar</Text>
+        </View>
+      )
+    }
+
+    if (block.kind === 'link') {
+      return <Text key={block.id} style={{ fontSize: block.fontSize, color: colorToRgba(block.color), textDecoration: 'underline', marginBottom: block.marginBottom }}>{sanitizeText(block.label || block.url || '')}</Text>
+    }
+
+    if (block.kind === 'spacer') {
+      return <View key={block.id} style={{ height: block.height }} />
+    }
+
+    return null
+  }
+
+  return (
+    <PDFDocument>
+      <Page
+        size="A4"
+        style={{
+          ...styles.page,
+          fontFamily: docFont,
+          fontSize: content.style.baseFontSize,
+          backgroundColor: colorToRgba(content.style.forceBackground ?? content.style.pageBackground),
+          paddingLeft: content.style.pagePaddingX,
+          paddingRight: content.style.pagePaddingX,
+          paddingTop: content.style.pagePaddingY,
+          paddingBottom: content.style.pagePaddingY,
+        }}
+      >
+        {content.sections.filter((s) => !s.hidden).map((section) => (
+          (() => {
+            const borderWidth = safeBorderWidth(section.border?.width)
+            return (
+          <View
+            key={section.id}
+            style={{
+              flexDirection: 'row',
+              columnGap: section.gap,
+              paddingLeft: section.columns.length > 1 ? 0 : section.paddingX,
+              paddingRight: section.columns.length > 1 ? 0 : section.paddingX,
+              paddingTop: section.paddingY,
+              paddingBottom: section.paddingY,
+              backgroundColor: section.background ? colorToRgba(section.background) : undefined,
+              borderTopWidth: borderWidth,
+              borderRightWidth: borderWidth,
+              borderBottomWidth: borderWidth,
+              borderLeftWidth: borderWidth,
+              borderTopStyle: borderWidth > 0 ? (section.border?.style ?? 'solid') : undefined,
+              borderRightStyle: borderWidth > 0 ? (section.border?.style ?? 'solid') : undefined,
+              borderBottomStyle: borderWidth > 0 ? (section.border?.style ?? 'solid') : undefined,
+              borderLeftStyle: borderWidth > 0 ? (section.border?.style ?? 'solid') : undefined,
+              borderTopColor: borderWidth > 0 ? colorToRgba(section.border?.color) : undefined,
+              borderRightColor: borderWidth > 0 ? colorToRgba(section.border?.color) : undefined,
+              borderBottomColor: borderWidth > 0 ? colorToRgba(section.border?.color) : undefined,
+              borderLeftColor: borderWidth > 0 ? colorToRgba(section.border?.color) : undefined,
+              borderRadius: section.border?.radius,
+            }}
+          >
+            {section.columns.map((col) => (
+              <View
+                key={col.id}
+                style={{
+                  flex: col.weight,
+                  paddingLeft: col.paddingX,
+                  paddingRight: col.paddingX,
+                  paddingTop: col.paddingY,
+                  paddingBottom: col.paddingY,
+                  backgroundColor: col.background ? colorToRgba(col.background) : undefined,
+                }}
+              >
+                {groupedRows(col.blocks).map((row) => {
+                  if (row.blocks.length === 1) return <View key={row.id}>{renderBlock(row.blocks[0])}</View>
+                  return (
+                    <View key={row.id} style={{ flexDirection: 'row', columnGap: 12 }}>
+                      {row.blocks.map((block) => (
+                        <View key={block.id} style={{ width: `${Math.max(20, block.rowWidth ?? 100)}%` }}>
+                          {renderBlock(block)}
+                        </View>
+                      ))}
+                    </View>
+                  )
+                })}
+              </View>
+            ))}
+          </View>
+            )
+          })()
+        ))}
+      </Page>
+    </PDFDocument>
+  )
 }
 
 // ── Resume PDF ────────────────────────────────────────────────────────────────

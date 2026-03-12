@@ -18,7 +18,7 @@ import {
   rectSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical } from 'lucide-react'
+import { GripVertical, Plus } from 'lucide-react'
 import type { CanvasBlock, CanvasColumn, CanvasDocument, CanvasSection } from '@binh-tran/shared'
 import { BlockRenderer } from './BlockRenderer'
 import { toRgba } from './canvas-utils'
@@ -35,7 +35,7 @@ type DragData = {
   sectionId: string
   columnId: string
   targetBlockId?: string
-  side?: 'left' | 'right'
+  side?: 'left' | 'right' | 'top' | 'bottom'
 }
 
 type BlockRow = {
@@ -103,9 +103,10 @@ interface SortableBlockItemProps {
   index: number
   isPreview: boolean
   activeBlockId: string | null
+  overTargetBlockId: string | null
 }
 
-function SortableBlockItem({ block, section, column, doc, index, isPreview, activeBlockId }: SortableBlockItemProps) {
+function SortableBlockItem({ block, section, column, doc, index, isPreview, activeBlockId, overTargetBlockId }: SortableBlockItemProps) {
   const { selectedBlockId, selectBlock, editingBlockId } = useCanvasStore()
   const isEditing = editingBlockId === block.id
 
@@ -153,17 +154,19 @@ function SortableBlockItem({ block, section, column, doc, index, isPreview, acti
         onClick={() => selectBlock(section.id, column.id, block.id)}
       />
 
-      {!isPreview && !!activeBlockId && activeBlockId !== block.id && (
+      {!isPreview && !!activeBlockId && activeBlockId !== block.id && overTargetBlockId === block.id && (
         <>
-          <SideDropZone sectionId={section.id} columnId={column.id} targetBlockId={block.id} side="left" />
-          <SideDropZone sectionId={section.id} columnId={column.id} targetBlockId={block.id} side="right" />
+          <EdgeDropZone sectionId={section.id} columnId={column.id} targetBlockId={block.id} side="left" />
+          <EdgeDropZone sectionId={section.id} columnId={column.id} targetBlockId={block.id} side="right" />
+          <EdgeDropZone sectionId={section.id} columnId={column.id} targetBlockId={block.id} side="top" />
+          <EdgeDropZone sectionId={section.id} columnId={column.id} targetBlockId={block.id} side="bottom" />
         </>
       )}
     </div>
   )
 }
 
-function SideDropZone({
+function EdgeDropZone({
   sectionId,
   columnId,
   targetBlockId,
@@ -172,7 +175,7 @@ function SideDropZone({
   sectionId: string
   columnId: string
   targetBlockId: string
-  side: 'left' | 'right'
+  side: 'left' | 'right' | 'top' | 'bottom'
 }) {
   const { setNodeRef, isOver } = useDroppable({
     id: `side::${side}::${targetBlockId}`,
@@ -185,16 +188,33 @@ function SideDropZone({
     } satisfies DragData,
   })
 
+  const isVertical = side === 'left' || side === 'right'
+
   return (
     <div
       ref={setNodeRef}
       className={cn(
-        'absolute top-0 bottom-0 w-3 z-30',
-        side === 'left' ? '-left-1.5' : '-right-1.5',
-        isOver ? 'bg-primary/25 border border-primary rounded-sm' : 'bg-transparent',
+        'absolute z-30 flex items-center justify-center pointer-events-auto',
+        side === 'left' && '-left-1 top-0 bottom-0 w-2',
+        side === 'right' && '-right-1 top-0 bottom-0 w-2',
+        side === 'top' && 'left-0 right-0 -top-1 h-2',
+        side === 'bottom' && 'left-0 right-0 -bottom-1 h-2',
       )}
       aria-hidden
-    />
+    >
+      <div
+        className={cn(
+          'rounded-full transition-all',
+          isVertical ? 'w-px h-[65%]' : 'h-px w-[65%]',
+          isOver ? 'bg-primary/70' : 'bg-primary/25',
+        )}
+      />
+      {isOver && (
+        <div className="absolute rounded-full bg-primary/80 text-primary-foreground p-[2px] shadow-sm">
+          <Plus className="size-2" />
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -205,9 +225,10 @@ interface ColumnRendererProps {
   isPreview: boolean
   overColumnId: string | null
   activeBlockId: string | null
+  overTargetBlockId: string | null
 }
 
-function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeBlockId }: ColumnRendererProps) {
+function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeBlockId, overTargetBlockId }: ColumnRendererProps) {
   const { updateBlock } = useCanvasStore()
   const { setNodeRef: dropRef } = useDroppable({
     id: `drop::${column.id}`,
@@ -369,6 +390,7 @@ function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeB
                 index={idx}
                 isPreview={false}
                 activeBlockId={activeBlockId}
+                overTargetBlockId={overTargetBlockId}
               />
             )
           }
@@ -387,12 +409,16 @@ function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeB
                       index={idx}
                       isPreview={false}
                       activeBlockId={activeBlockId}
+                      overTargetBlockId={overTargetBlockId}
                     />
 
                     {i < row.blocks.length - 1 && (
                       <button
                         type="button"
-                        className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize z-30 bg-transparent hover:bg-primary/20"
+                        className={cn(
+                          'absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize z-30 bg-transparent hover:bg-primary/20',
+                          activeBlockId && 'hidden',
+                        )}
                         title="Drag to resize blocks"
                         onMouseDown={(ev) => startResize(row, i, ev)}
                       />
@@ -428,9 +454,10 @@ interface SectionRendererProps {
   isPreview: boolean
   overColumnId: string | null
   activeBlockId: string | null
+  overTargetBlockId: string | null
 }
 
-function SectionRenderer({ section, doc, isPreview, overColumnId, activeBlockId }: SectionRendererProps) {
+function SectionRenderer({ section, doc, isPreview, overColumnId, activeBlockId, overTargetBlockId }: SectionRendererProps) {
   const { selectedSectionId, selectedBlockId } = useCanvasStore()
   const [hovered, setHovered] = useState(false)
   const isSectionActive = !isPreview && (selectedSectionId === section.id || hovered)
@@ -484,6 +511,7 @@ function SectionRenderer({ section, doc, isPreview, overColumnId, activeBlockId 
             isPreview={isPreview}
             overColumnId={overColumnId}
             activeBlockId={activeBlockId}
+            overTargetBlockId={overTargetBlockId}
           />
         ))}
       </div>
@@ -509,6 +537,7 @@ export function CanvasPreview({ doc, isPreview = false }: Props) {
 
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null)
   const [overColumnId, setOverColumnId] = useState<string | null>(null)
+  const [overTargetBlockId, setOverTargetBlockId] = useState<string | null>(null)
 
   const activeBlock = useMemo(() => {
     if (!activeBlockId) return null
@@ -521,11 +550,21 @@ export function CanvasPreview({ doc, isPreview = false }: Props) {
 
   function handleDragStart(event: DragStartEvent) {
     setActiveBlockId(String(event.active.id))
+    setOverTargetBlockId(null)
   }
 
   function handleDragOver(event: DragOverEvent) {
     const overData = event.over?.data.current as DragData | undefined
     setOverColumnId(overData?.columnId ?? null)
+    if (overData?.type === 'side-dropzone' && overData.targetBlockId) {
+      setOverTargetBlockId(overData.targetBlockId)
+      return
+    }
+    if (overData?.type === 'block' && event.over?.id) {
+      setOverTargetBlockId(String(event.over.id))
+      return
+    }
+    setOverTargetBlockId(null)
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -534,6 +573,7 @@ export function CanvasPreview({ doc, isPreview = false }: Props) {
 
     setActiveBlockId(null)
     setOverColumnId(null)
+    setOverTargetBlockId(null)
 
     if (!overId || activeId === overId) return
 
@@ -553,8 +593,16 @@ export function CanvasPreview({ doc, isPreview = false }: Props) {
       const targetIdx = toColumn.blocks.findIndex((b) => b.id === targetBlockId)
       if (targetIdx === -1) return
 
-      const insertIdx = overData.side === 'left' ? targetIdx : targetIdx + 1
+      const isLeftOrTop = overData.side === 'left' || overData.side === 'top'
+      const insertIdx = isLeftOrTop ? targetIdx : targetIdx + 1
       transferBlock(fromData.sectionId, fromData.columnId, activeId, toSectionId, toColumnId, insertIdx)
+
+      if (overData.side === 'top' || overData.side === 'bottom') {
+        window.requestAnimationFrame(() => {
+          updateBlock(toSectionId, toColumnId, activeId, { rowId: undefined, rowWidth: 100 } as Partial<CanvasBlock>)
+        })
+        return
+      }
 
       const targetBlock = toColumn.blocks[targetIdx]
       if (!targetBlock) return
@@ -709,6 +757,7 @@ export function CanvasPreview({ doc, isPreview = false }: Props) {
           isPreview={isPreview}
           overColumnId={overColumnId}
           activeBlockId={activeBlockId}
+          overTargetBlockId={overTargetBlockId}
         />
       ))}
     </div>

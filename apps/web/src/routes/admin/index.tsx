@@ -11,7 +11,7 @@ import { contentToCanvas, defaultStructuredContent } from '@/components/canvas/p
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -108,6 +108,9 @@ function AdminDashboard() {
         <DialogContent className="!w-[92vw] sm:!w-[860px] !max-w-[860px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create document</DialogTitle>
+               <DialogDescription className="sr-only">
+                 Create a new document by selecting type, title, and template.
+               </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">

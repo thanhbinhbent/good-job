@@ -69,6 +69,25 @@ type CoverLetterContent = {
   jobTitle?: string;
 };
 
+type CanvasColor = { hex?: string; opacity?: number };
+type CanvasBlock = {
+  id: string;
+  kind: string;
+  content?: string;
+  leftContent?: string;
+  rightContent?: string;
+  startDate?: string;
+  endDate?: string;
+  current?: boolean;
+  items?: string[];
+  label?: string;
+  value?: number;
+  url?: string;
+};
+type CanvasColumn = { id: string; blocks: CanvasBlock[] };
+type CanvasSection = { id: string; label?: string; hidden?: boolean; columns: CanvasColumn[]; background?: CanvasColor };
+type CanvasContent = { version?: number; sections?: CanvasSection[] };
+
 @Injectable()
 export class ExportService {
   private get db() {
@@ -88,6 +107,11 @@ export class ExportService {
   async generateDocx(id: string): Promise<Buffer> {
     const doc = this.findDocument(id);
     const content = JSON.parse(doc.content) as Record<string, unknown>;
+
+    if (this.isCanvasContent(content)) {
+      const wordDoc = this.buildCanvasDocx(doc.title, content as unknown as CanvasContent);
+      return await Packer.toBuffer(wordDoc);
+    }
 
     let wordDoc: Document;
 
@@ -109,6 +133,78 @@ export class ExportService {
     }
 
     return await Packer.toBuffer(wordDoc);
+  }
+
+  private isCanvasContent(content: unknown): content is CanvasContent {
+    if (!content || typeof content !== 'object') return false;
+    const c = content as CanvasContent;
+    return c.version === 1 && Array.isArray(c.sections);
+  }
+
+  private stripHtml(input?: string): string {
+    if (!input) return '';
+    return input
+      .replace(/<[^>]*>/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private canvasBlockText(block: CanvasBlock): string {
+    if (block.kind === 'text') return this.stripHtml(block.content);
+    if (block.kind === 'dualText') {
+      return [this.stripHtml(block.leftContent), this.stripHtml(block.rightContent)].filter(Boolean).join(' — ');
+    }
+    if (block.kind === 'date') {
+      const end = block.current ? 'Present' : (block.endDate ?? '');
+      return [block.startDate, end].filter(Boolean).join(' – ');
+    }
+    if (block.kind === 'tags') return (block.items ?? []).join(', ');
+    if (block.kind === 'progress') return [block.label, typeof block.value === 'number' ? `${block.value}%` : ''].filter(Boolean).join(' ');
+    if (block.kind === 'link') return [block.label, block.url].filter(Boolean).join(' — ');
+    return '';
+  }
+
+  private buildCanvasDocx(title: string, c: CanvasContent): Document {
+    const children: Paragraph[] = [];
+    const p = (
+      text: string,
+      opts?: {
+        bold?: boolean;
+        size?: number;
+        heading?: (typeof HeadingLevel)[keyof typeof HeadingLevel];
+        spacing?: number;
+      },
+    ) =>
+      new Paragraph({
+        children: [new TextRun({ text, bold: opts?.bold, size: opts?.size ?? 22 })],
+        heading: opts?.heading,
+        spacing: { after: opts?.spacing ?? 80 },
+        alignment: AlignmentType.LEFT,
+      });
+
+    children.push(p(title, { bold: true, size: 40, spacing: 140 }));
+
+    const sections = (c.sections ?? []).filter((s) => !s.hidden);
+    for (const section of sections) {
+      if (section.label) {
+        children.push(p(section.label, { heading: HeadingLevel.HEADING_2, spacing: 80 }));
+      }
+
+      for (const col of section.columns ?? []) {
+        for (const block of col.blocks ?? []) {
+          const line = this.canvasBlockText(block);
+          if (!line) continue;
+          children.push(p(line, { size: 21, spacing: 60 }));
+        }
+      }
+      children.push(new Paragraph({ text: '' }));
+    }
+
+    return new Document({ sections: [{ children }] });
   }
 
   private buildResumeDocx(title: string, c: ResumeContent): Document {

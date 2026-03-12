@@ -11,7 +11,7 @@ import { ShareDialog } from '@/components/ShareDialog'
 import { DEFAULT_TEMPLATE_ID } from '@/components/templates/registry'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { ArrowLeft, Download, Loader2, WandSparkles } from 'lucide-react'
@@ -169,6 +169,9 @@ function DocumentEditorPage() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Apply template</DialogTitle>
+            <DialogDescription className="sr-only">
+              Choose a template and apply mode for this document.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">

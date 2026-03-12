@@ -7,7 +7,7 @@ import { BlockPropertiesPanel } from './BlockPropertiesPanel'
 import { GlobalStylePanel } from './GlobalStylePanel'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
   Loader2, Save, Eye, Columns, Palette,
   PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen,
@@ -208,6 +208,9 @@ export function CanvasEditor({
         <DialogContent className="!w-[96vw] !max-w-[1400px] h-[94vh] max-h-[94vh] flex flex-col p-0 gap-0">
           <DialogHeader className="px-6 py-4 border-b border-border shrink-0">
             <DialogTitle>Document Preview</DialogTitle>
+            <DialogDescription className="sr-only">
+              Preview the current document layout before exporting.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-auto bg-[var(--color-canvas-workspace)] p-8">
             <div className="mx-auto" style={{ width: doc.style.pageWidth }}>
