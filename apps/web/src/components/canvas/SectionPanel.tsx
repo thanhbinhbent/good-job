@@ -6,7 +6,7 @@ import {
   SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { useCanvasStore, makeTextBlock, makeDateBlock, makeTagBlock, makeDividerBlock, makeSpacerBlock, makeProgressBlock, makeImageBlock, makeLinkBlock, makeDualTextBlock } from '@/stores/canvas.store'
+import { useCanvasStore, makeTextBlock, makeDateBlock, makeTagBlock, makeDividerBlock, makeSpacerBlock, makeProgressBlock, makeImageBlock, makeLinkBlock, makeDualTextBlock, makeRatingBlock, makeTimelineBlock, makeBadgeBlock, makeStatBlock, makeCardBlock, makeSocialLinksBlock } from '@/stores/canvas.store'
 import type { CanvasBlock, CanvasBlockKind, CanvasSection, CanvasColumn } from '@binh-tran/shared'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,10 +31,16 @@ const BLOCK_KINDS: { kind: CanvasBlockKind; label: string; icon: React.FC<{ clas
   { kind: 'date', label: 'Date Range', icon: Calendar },
   { kind: 'tags', label: 'Tags / Skills', icon: Tag },
   { kind: 'progress', label: 'Skill Bar', icon: BarChart2 },
+  { kind: 'rating', label: 'Rating', icon: Star },
   { kind: 'divider', label: 'Divider', icon: Minus },
   { kind: 'image', label: 'Image / Avatar', icon: Image },
   { kind: 'link', label: 'Link', icon: Link2 },
   { kind: 'spacer', label: 'Spacer', icon: Space },
+  { kind: 'timeline', label: 'Timeline', icon: Clock },
+  { kind: 'badge', label: 'Badge', icon: Award },
+  { kind: 'stat', label: 'Stat', icon: TrendingUp },
+  { kind: 'card', label: 'Card', icon: SquareStack },
+  { kind: 'socialLinks', label: 'Social Links', icon: Share2 },
 ]
 
 function toColorInputHex(hex?: string): string {
@@ -56,6 +62,12 @@ function makeBlock(kind: CanvasBlockKind): CanvasBlock {
   if (kind === 'progress') return makeProgressBlock()
   if (kind === 'image') return makeImageBlock()
   if (kind === 'link') return makeLinkBlock()
+  if (kind === 'rating') return makeRatingBlock()
+  if (kind === 'timeline') return makeTimelineBlock()
+  if (kind === 'badge') return makeBadgeBlock()
+  if (kind === 'stat') return makeStatBlock()
+  if (kind === 'card') return makeCardBlock()
+  if (kind === 'socialLinks') return makeSocialLinksBlock()
   return makeTextBlock()
 }
 
@@ -87,6 +99,8 @@ function SortableBlockRow({ block, sec, col }: { block: CanvasBlock; sec: Canvas
         {...attributes}
         {...listeners}
         onClick={(e) => e.stopPropagation()}
+        aria-label="Drag to reorder block"
+        role="button"
       >
         <GripVertical className="size-3 text-muted-foreground" />
       </button>
@@ -98,6 +112,7 @@ function SortableBlockRow({ block, sec, col }: { block: CanvasBlock; sec: Canvas
           className="p-0.5 rounded hover:bg-muted"
           title="Duplicate"
           onClick={(e) => { e.stopPropagation(); duplicateBlock(sec.id, col.id, block.id) }}
+          aria-label="Duplicate block"
         >
           <Plus className="size-3 text-muted-foreground" />
         </button>
@@ -105,6 +120,7 @@ function SortableBlockRow({ block, sec, col }: { block: CanvasBlock; sec: Canvas
           className="p-0.5 rounded hover:bg-muted"
           title="Delete"
           onClick={(e) => { e.stopPropagation(); removeBlock(sec.id, col.id, block.id); selectBlock(null, null, null) }}
+          aria-label="Delete block"
         >
           <Trash2 className="size-3 text-destructive" />
         </button>

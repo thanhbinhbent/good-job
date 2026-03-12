@@ -157,6 +157,26 @@
     @apply font-sans;
     }
 
+  /* Focus visible styles for keyboard navigation */
+  *:focus-visible {
+    outline: 2px solid var(--color-canvas-focus-ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  button:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 2px solid var(--color-canvas-focus-ring);
+    outline-offset: 2px;
+  }
+
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid var(--color-canvas-focus-ring);
+    outline-offset: 0;
+  }
+
   /* Tiptap placeholder styles */
   .ProseMirror p.is-editor-empty:first-child::before {
     color: hsl(var(--muted-foreground));
@@ -174,6 +194,12 @@
   .canvas-block:hover:not(.canvas-block-dragging) {
     transform: scale(1.005);
     box-shadow: 0 2px 8px oklch(0 0 0 / 0.08);
+  }
+
+  /* Canvas block focus visible for keyboard navigation */
+  .canvas-block:focus-visible {
+    outline: 2px solid var(--color-canvas-focus-ring);
+    outline-offset: 2px;
   }
 
   /* Selection pulse animation */

@@ -42,6 +42,8 @@ export function CanvasEditor({
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [rightCollapsed, setRightCollapsed] = useState(false)
   const [showSavingIndicator, setShowSavingIndicator] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [isOffline, setIsOffline] = useState(false)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const savingIndicatorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastIncomingSnapshotRef = useRef<string | null>(null)
@@ -70,6 +72,12 @@ export function CanvasEditor({
   const handleSave = useCallback(async () => {
     if (!doc) return
 
+    // Can't save while offline
+    if (isOffline) {
+      setSaveError('Cannot save while offline. Changes will be saved when connection is restored.')
+      return
+    }
+
     // Validate document before saving
     try {
       canvasDocumentSchema.parse(doc)
@@ -84,13 +92,42 @@ export function CanvasEditor({
       setShowSavingIndicator(true)
     }, 500)
 
-    await onSave(doc)
-    markSaved()
+    try {
+      await onSave(doc)
+      markSaved()
+      setSaveError(null)
+    } catch (error) {
+      console.error('Save failed:', error)
+      setSaveError('Failed to save changes. Please try again.')
+    } finally {
+      // Clear and hide the saving indicator
+      if (savingIndicatorTimeoutRef.current) clearTimeout(savingIndicatorTimeoutRef.current)
+      setShowSavingIndicator(false)
+    }
+  }, [doc, onSave, markSaved, isOffline])
 
-    // Clear and hide the saving indicator
-    if (savingIndicatorTimeoutRef.current) clearTimeout(savingIndicatorTimeoutRef.current)
-    setShowSavingIndicator(false)
-  }, [doc, onSave, markSaved])
+  // Monitor online/offline status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false)
+      // Retry save if there are unsaved changes
+      if (isDirty && doc) {
+        void handleSave()
+      }
+    }
+    const handleOffline = () => setIsOffline(true)
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    // Check initial status
+    setIsOffline(!navigator.onLine)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [isDirty, doc, handleSave])
 
   useEffect(() => {
     if (!isDirty) return
@@ -125,6 +162,12 @@ export function CanvasEditor({
               </TabsTrigger>
             </TabsList>
           </Tabs>
+          {isOffline && (
+            <span className="text-[10px] text-yellow-600 dark:text-yellow-400 flex items-center gap-1" role="status" aria-live="polite">
+              <span className="size-1.5 rounded-full bg-yellow-600 dark:bg-yellow-400 inline-block" />
+              Offline
+            </span>
+          )}
           {isDirty && (
             <span className="text-[10px] text-muted-foreground flex items-center gap-1" role="status" aria-live="polite">
               <span className="size-1.5 rounded-full bg-[var(--color-canvas-focus-ring)] inline-block" />
@@ -137,12 +180,17 @@ export function CanvasEditor({
               Saving...
             </span>
           )}
+          {saveError && (
+            <span className="text-[10px] text-red-600 dark:text-red-400 flex items-center gap-1" role="alert" aria-live="assertive">
+              {saveError}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1.5">
-          <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={() => setPreviewOpen(true)}>
+          <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={() => setPreviewOpen(true)} aria-label="Open document preview">
             <Eye className="size-3" /> Preview
           </Button>
-          <Button size="sm" className="h-7 text-xs gap-1.5" onClick={() => void handleSave()} disabled={isSaving || !isDirty}>
+          <Button size="sm" className="h-7 text-xs gap-1.5" onClick={() => void handleSave()} disabled={isSaving || !isDirty} aria-label={isDirty ? "Save changes" : "No changes to save"}>
             {isSaving ? <Loader2 className="size-3 animate-spin" /> : <Save className="size-3" />}
             Save
           </Button>

@@ -172,6 +172,24 @@ export function BlockPropertiesPanel() {
             <NumInput value={block.height} min={0} max={200} onChange={(v) => update({ height: v } as Partial<CanvasBlock>)} />
           </Row>
         )}
+        {block.kind === 'rating' && (
+          <RatingBlockEditor block={block} update={update} />
+        )}
+        {block.kind === 'timeline' && (
+          <TimelineBlockEditor block={block} update={update} />
+        )}
+        {block.kind === 'badge' && (
+          <BadgeBlockEditor block={block} update={update} />
+        )}
+        {block.kind === 'stat' && (
+          <StatBlockEditor block={block} update={update} />
+        )}
+        {block.kind === 'card' && (
+          <CardBlockEditor block={block} update={update} />
+        )}
+        {block.kind === 'socialLinks' && (
+          <SocialLinksBlockEditor block={block} update={update} />
+        )}
       </div>
     </div>
   )
@@ -547,3 +565,301 @@ function LinkBlockEditor({ block, update }: { block: import('@binh-tran/shared')
     </div>
   )
 }
+
+function RatingBlockEditor({ block, update }: { block: import('@binh-tran/shared').RatingBlock; update: (p: Partial<CanvasBlock>) => void }) {
+  const p = (patch: object) => update(patch as Partial<CanvasBlock>)
+  return (
+    <div className="space-y-3">
+      <Group title="Rating">
+        <Row label="Label"><Input value={block.label} className="h-8 text-xs" onChange={(e) => p({ label: e.target.value })} /></Row>
+        <Row label="Value">
+          <div className="flex items-center gap-2">
+            <Slider value={[block.value]} min={0} max={block.maxValue} className="flex-1"
+              onValueChange={([v]) => p({ value: v })} />
+            <span className="w-8 text-right text-xs">{block.value}</span>
+          </div>
+        </Row>
+        <Row label="Max"><NumInput value={block.maxValue} min={1} max={10} onChange={(v) => p({ maxValue: v })} /></Row>
+        <Row label="Style">
+          <Select value={block.style} onValueChange={(v) => p({ style: v })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="stars">Stars</SelectItem>
+              <SelectItem value="dots">Dots</SelectItem>
+              <SelectItem value="bars">Bars</SelectItem>
+            </SelectContent>
+          </Select>
+        </Row>
+        <Row label="Size"><NumInput value={block.size} min={8} max={32} onChange={(v) => p({ size: v })} /></Row>
+      </Group>
+
+      <Group title="Colors">
+        <Row label="Fill"><ColorInput value={block.color} onChange={(c) => p({ color: c })} /></Row>
+        <Row label="Empty"><ColorInput value={block.emptyColor} onChange={(c) => p({ emptyColor: c })} /></Row>
+      </Group>
+
+      <Group title="Layout">
+        <Row label="Margin↓"><NumInput value={block.marginBottom} min={0} max={80} onChange={(v) => p({ marginBottom: v })} /></Row>
+      </Group>
+    </div>
+  )
+}
+
+function TimelineBlockEditor({ block, update }: { block: import('@binh-tran/shared').TimelineBlock; update: (p: Partial<CanvasBlock>) => void }) {
+  const p = (patch: object) => update(patch as Partial<CanvasBlock>)
+  const [newEntry, setNewEntry] = useState({ year: '', title: '', subtitle: '', description: '' })
+
+  const addEntry = () => {
+    if (!newEntry.year.trim() || !newEntry.title.trim()) return
+    p({
+      entries: [...block.entries, {
+        id: crypto.randomUUID(),
+        year: newEntry.year.trim(),
+        title: newEntry.title.trim(),
+        subtitle: newEntry.subtitle.trim() || undefined,
+        description: newEntry.description.trim() || undefined,
+      }]
+    })
+    setNewEntry({ year: '', title: '', subtitle: '', description: '' })
+  }
+
+  return (
+    <div className="space-y-3">
+      <Group title="Timeline Entries">
+        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+          {block.entries.map((entry, i) => (
+            <div key={entry.id} className="rounded border border-border p-2 space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold">{entry.year} - {entry.title}</span>
+                <button onClick={() => p({ entries: block.entries.filter((_, j) => j !== i) })}
+                  className="text-muted-foreground hover:text-destructive">
+                  <X className="size-3" />
+                </button>
+              </div>
+              {entry.subtitle && <p className="text-[10px] text-muted-foreground">{entry.subtitle}</p>}
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-2 pt-2 border-t border-border">
+          <Input value={newEntry.year} placeholder="Year" className="h-7 text-xs"
+            onChange={(e) => setNewEntry({ ...newEntry, year: e.target.value })} />
+          <Input value={newEntry.title} placeholder="Title" className="h-7 text-xs"
+            onChange={(e) => setNewEntry({ ...newEntry, title: e.target.value })} />
+          <Input value={newEntry.subtitle} placeholder="Subtitle (optional)" className="h-7 text-xs"
+            onChange={(e) => setNewEntry({ ...newEntry, subtitle: e.target.value })} />
+          <Button size="sm" className="h-7 text-xs w-full" onClick={addEntry}>Add Entry</Button>
+        </div>
+      </Group>
+
+      <Group title="Style">
+        <Row label="Dot color"><ColorInput value={block.dotColor} onChange={(c) => p({ dotColor: c })} /></Row>
+        <Row label="Line color"><ColorInput value={block.lineColor} onChange={(c) => p({ lineColor: c })} /></Row>
+        <Row label="Dot size"><NumInput value={block.dotSize} min={4} max={20} onChange={(v) => p({ dotSize: v })} /></Row>
+        <Row label="Line width"><NumInput value={block.lineWidth} min={1} max={6} onChange={(v) => p({ lineWidth: v })} /></Row>
+        <Row label="Spacing"><NumInput value={block.spacing} min={8} max={40} onChange={(v) => p({ spacing: v })} /></Row>
+        <Row label="Margin↓"><NumInput value={block.marginBottom} min={0} max={80} onChange={(v) => p({ marginBottom: v })} /></Row>
+      </Group>
+    </div>
+  )
+}
+
+function BadgeBlockEditor({ block, update }: { block: import('@binh-tran/shared').BadgeBlock; update: (p: Partial<CanvasBlock>) => void }) {
+  const p = (patch: object) => update(patch as Partial<CanvasBlock>)
+  return (
+    <div className="space-y-3">
+      <Group title="Badge">
+        <Row label="Text"><Input value={block.text} className="h-8 text-xs" onChange={(e) => p({ text: e.target.value })} /></Row>
+      </Group>
+
+      <Group title="Style">
+        <Row label="BG color"><ColorInput value={block.backgroundColor} onChange={(c) => p({ backgroundColor: c })} /></Row>
+        <Row label="Text color"><ColorInput value={block.textColor} onChange={(c) => p({ textColor: c })} /></Row>
+        <Row label="Radius"><NumInput value={block.borderRadius} min={0} max={50} onChange={(v) => p({ borderRadius: v })} /></Row>
+        <Row label="Font size"><NumInput value={block.fontSize} min={8} max={24} onChange={(v) => p({ fontSize: v })} /></Row>
+        <Row label="Font weight">
+          <Select value={block.fontWeight} onValueChange={(v) => p({ fontWeight: v })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(['300','400','500','600','700','800'] as const).map((w) => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
+      </Group>
+
+      <Group title="Padding">
+        <Row label="Horizontal"><NumInput value={block.padding.x} min={4} max={40} onChange={(v) => p({ padding: { ...block.padding, x: v } })} /></Row>
+        <Row label="Vertical"><NumInput value={block.padding.y} min={2} max={20} onChange={(v) => p({ padding: { ...block.padding, y: v } })} /></Row>
+        <Row label="Margin↓"><NumInput value={block.marginBottom} min={0} max={80} onChange={(v) => p({ marginBottom: v })} /></Row>
+      </Group>
+    </div>
+  )
+}
+
+function StatBlockEditor({ block, update }: { block: import('@binh-tran/shared').StatBlock; update: (p: Partial<CanvasBlock>) => void }) {
+  const p = (patch: object) => update(patch as Partial<CanvasBlock>)
+  return (
+    <div className="space-y-3">
+      <Group title="Stat">
+        <Row label="Value"><Input value={block.value} className="h-8 text-xs" onChange={(e) => p({ value: e.target.value })} /></Row>
+        <Row label="Label"><Input value={block.label} className="h-8 text-xs" onChange={(e) => p({ label: e.target.value })} /></Row>
+      </Group>
+
+      <Group title="Typography">
+        <Row label="Value size"><NumInput value={block.valueSize} min={16} max={72} onChange={(v) => p({ valueSize: v })} /></Row>
+        <Row label="Label size"><NumInput value={block.labelSize} min={8} max={24} onChange={(v) => p({ labelSize: v })} /></Row>
+        <Row label="Align">
+          <Select value={block.align} onValueChange={(v) => p({ align: v })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {['left','center','right'].map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
+      </Group>
+
+      <Group title="Colors">
+        <Row label="Value"><ColorInput value={block.valueColor} onChange={(c) => p({ valueColor: c })} /></Row>
+        <Row label="Label"><ColorInput value={block.labelColor} onChange={(c) => p({ labelColor: c })} /></Row>
+      </Group>
+
+      <Group title="Layout">
+        <Row label="Margin↓"><NumInput value={block.marginBottom} min={0} max={80} onChange={(v) => p({ marginBottom: v })} /></Row>
+      </Group>
+    </div>
+  )
+}
+
+function CardBlockEditor({ block, update }: { block: import('@binh-tran/shared').CardBlock; update: (p: Partial<CanvasBlock>) => void }) {
+  const p = (patch: object) => update(patch as Partial<CanvasBlock>)
+  const [newTag, setNewTag] = useState('')
+
+  const addTag = () => {
+    if (!newTag.trim()) return
+    p({ tags: [...block.tags, newTag.trim()] })
+    setNewTag('')
+  }
+
+  return (
+    <div className="space-y-3">
+      <Group title="Content">
+        <Row label="Title"><Input value={block.title} className="h-8 text-xs" onChange={(e) => p({ title: e.target.value })} /></Row>
+        <Row label="Subtitle"><Input value={block.subtitle ?? ''} className="h-8 text-xs" onChange={(e) => p({ subtitle: e.target.value })} /></Row>
+        <Row label="Description"><Input value={block.description} className="h-8 text-xs" onChange={(e) => p({ description: e.target.value })} /></Row>
+        <Row label="Image URL"><Input value={block.imageUrl ?? ''} placeholder="https://…" className="h-8 text-xs" onChange={(e) => p({ imageUrl: e.target.value })} /></Row>
+      </Group>
+
+      <Group title="Tags">
+        <div className="flex min-h-[32px] flex-wrap gap-1.5 rounded border border-border p-2">
+          {block.tags.map((t, i) => (
+            <span key={i} className="flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs">
+              {t}
+              <button onClick={() => p({ tags: block.tags.filter((_, j) => j !== i) })}
+                className="text-muted-foreground hover:text-destructive">
+                <X className="size-2.5" />
+              </button>
+            </span>
+          ))}
+        </div>
+        <div className="flex gap-1">
+          <Input value={newTag} placeholder="Add tag…" className="h-7 text-xs flex-1"
+            onChange={(e) => setNewTag(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag() } }}
+          />
+          <Button size="sm" className="h-7 text-xs" onClick={addTag}>Add</Button>
+        </div>
+      </Group>
+
+      <Group title="Style">
+        <Row label="BG color"><ColorInput value={block.backgroundColor} onChange={(c) => p({ backgroundColor: c })} /></Row>
+        <Row label="Border color"><ColorInput value={block.borderColor} onChange={(c) => p({ borderColor: c })} /></Row>
+        <Row label="Border width"><NumInput value={block.borderWidth} min={0} max={8} onChange={(v) => p({ borderWidth: v })} /></Row>
+        <Row label="Border radius"><NumInput value={block.borderRadius} min={0} max={24} onChange={(v) => p({ borderRadius: v })} /></Row>
+        <Row label="Padding"><NumInput value={block.padding} min={8} max={40} onChange={(v) => p({ padding: v })} /></Row>
+        <Row label="Margin↓"><NumInput value={block.marginBottom} min={0} max={80} onChange={(v) => p({ marginBottom: v })} /></Row>
+      </Group>
+    </div>
+  )
+}
+
+function SocialLinksBlockEditor({ block, update }: { block: import('@binh-tran/shared').SocialLinksBlock; update: (p: Partial<CanvasBlock>) => void }) {
+  const p = (patch: object) => update(patch as Partial<CanvasBlock>)
+  const [newLink, setNewLink] = useState<{ platform: string; url: string; label: string }>({
+    platform: 'email', url: '', label: ''
+  })
+
+  const addLink = () => {
+    if (!newLink.url.trim()) return
+    p({
+      links: [...block.links, {
+        id: crypto.randomUUID(),
+        platform: newLink.platform as 'email' | 'linkedin' | 'github' | 'twitter' | 'website' | 'phone',
+        url: newLink.url.trim(),
+        label: newLink.label.trim() || undefined,
+      }]
+    })
+    setNewLink({ platform: 'email', url: '', label: '' })
+  }
+
+  return (
+    <div className="space-y-3">
+      <Group title="Social Links">
+        <div className="space-y-2 max-h-[200px] overflow-y-auto">
+          {block.links.map((link, i) => (
+            <div key={link.id} className="flex items-center justify-between rounded border border-border p-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-medium truncate">{link.platform}</div>
+                <div className="text-[10px] text-muted-foreground truncate">{link.url}</div>
+              </div>
+              <button onClick={() => p({ links: block.links.filter((_, j) => j !== i) })}
+                className="text-muted-foreground hover:text-destructive ml-2">
+                <X className="size-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        <div className="space-y-2 pt-2 border-t border-border">
+          <Select value={newLink.platform} onValueChange={(v) => setNewLink({ ...newLink, platform: v })}>
+            <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {['email','linkedin','github','twitter','website','phone'].map((p) =>
+                <SelectItem key={p} value={p}>{p}</SelectItem>
+              )}
+            </SelectContent>
+          </Select>
+          <Input value={newLink.url} placeholder="URL or handle" className="h-7 text-xs"
+            onChange={(e) => setNewLink({ ...newLink, url: e.target.value })} />
+          <Input value={newLink.label} placeholder="Label (optional)" className="h-7 text-xs"
+            onChange={(e) => setNewLink({ ...newLink, label: e.target.value })} />
+          <Button size="sm" className="h-7 text-xs w-full" onClick={addLink}>Add Link</Button>
+        </div>
+      </Group>
+
+      <Group title="Layout">
+        <Row label="Style">
+          <Select value={block.layout} onValueChange={(v) => p({ layout: v })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="horizontal">Horizontal</SelectItem>
+              <SelectItem value="vertical">Vertical</SelectItem>
+              <SelectItem value="grid">Grid</SelectItem>
+            </SelectContent>
+          </Select>
+        </Row>
+        <Row label="Icon size"><NumInput value={block.iconSize} min={12} max={48} onChange={(v) => p({ iconSize: v })} /></Row>
+        <Row label="Gap"><NumInput value={block.gap} min={4} max={32} onChange={(v) => p({ gap: v })} /></Row>
+        <Row label="Show labels"><Switch checked={block.showLabels} onCheckedChange={(v) => p({ showLabels: v })} /></Row>
+      </Group>
+
+      <Group title="Color">
+        <Row label="Icon color"><ColorInput value={block.color} onChange={(c) => p({ color: c })} /></Row>
+      </Group>
+
+      <Group title="Spacing">
+        <Row label="Margin↓"><NumInput value={block.marginBottom} min={0} max={80} onChange={(v) => p({ marginBottom: v })} /></Row>
+      </Group>
+    </div>
+  )
+}
+
