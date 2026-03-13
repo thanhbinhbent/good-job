@@ -435,6 +435,12 @@ export const timelineBlockSchema = z.object({
   dotSize: z.number().default(8),       // px
   lineWidth: z.number().default(2),     // px
   spacing: z.number().default(16),      // px between entries
+  // Typography for entries
+  titleSize: z.number().default(14),
+  titleWeight: z.enum(['300','400','500','600','700','800']).default('600'),
+  subtitleSize: z.number().default(12),
+  descriptionSize: z.number().default(12),
+  fontFamily: z.string().optional(),
   marginBottom: z.number().default(12),
 }).merge(blockLayoutSchema)
 export type TimelineBlock = z.infer<typeof timelineBlockSchema>
@@ -453,6 +459,7 @@ export const badgeBlockSchema = z.object({
   }).default({ x: 8, y: 4 }),
   fontSize: z.number().default(11),
   fontWeight: z.enum(['300','400','500','600','700','800']).default('600'),
+  fontFamily: z.string().optional(),
   marginBottom: z.number().default(8),
 }).merge(blockLayoutSchema)
 export type BadgeBlock = z.infer<typeof badgeBlockSchema>
@@ -465,6 +472,9 @@ export const statBlockSchema = z.object({
   label: z.string().default(''),
   valueSize: z.number().default(32),    // px
   labelSize: z.number().default(12),    // px
+  valueWeight: z.enum(['300','400','500','600','700','800']).default('700'),
+  labelWeight: z.enum(['300','400','500','600','700','800']).default('400'),
+  fontFamily: z.string().optional(),
   valueColor: canvasColorSchema.default({ hex: '#111111', opacity: 1 }),
   labelColor: canvasColorSchema.default({ hex: '#6b7280', opacity: 1 }),
   align: z.enum(['left', 'center', 'right']).default('center'),
@@ -486,6 +496,12 @@ export const cardBlockSchema = z.object({
   borderWidth: z.number().default(1),   // px
   borderRadius: z.number().default(8),  // px
   padding: z.number().default(16),      // px
+  // Typography
+  titleSize: z.number().default(16),
+  titleWeight: z.enum(['300','400','500','600','700','800']).default('600'),
+  subtitleSize: z.number().default(13),
+  descriptionSize: z.number().default(13),
+  fontFamily: z.string().optional(),
   marginBottom: z.number().default(12),
 }).merge(blockLayoutSchema)
 export type CardBlock = z.infer<typeof cardBlockSchema>

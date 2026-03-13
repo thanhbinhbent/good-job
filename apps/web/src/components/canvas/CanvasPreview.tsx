@@ -158,13 +158,14 @@ const SortableBlockItemInner = ({ block, section, column, doc, index, isPreview,
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.2 : 1,
+    pointerEvents: isDragging ? 'none' : 'auto',
   }), [transform, transition, isDragging])
 
   return (
     <div
       ref={setNodeRef}
       style={blockStyle}
-      className="group relative"
+      className={cn("group relative", isDragging && "dragging")}
       {...attributes}
     >
       {!isPreview && !isEditing && (
@@ -213,8 +214,11 @@ const SortableBlockItemInner = ({ block, section, column, doc, index, isPreview,
 
 // Memoize SortableBlockItem to prevent unnecessary re-renders
 const SortableBlockItem = memo(SortableBlockItemInner, (prev, next) => {
+  // Check if block properties have changed (deep comparison)
+  const blockChanged = prev.block !== next.block || JSON.stringify(prev.block) !== JSON.stringify(next.block)
+
   return (
-    prev.block.id === next.block.id &&
+    !blockChanged &&
     prev.activeBlockId === next.activeBlockId &&
     prev.overTargetBlockId === next.overTargetBlockId &&
     prev.index === next.index &&
@@ -457,7 +461,7 @@ function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeB
       <SortableContext items={column.blocks.map((b) => b.id)} strategy={rectSortingStrategy}>
         {/* Add button at the beginning */}
         {!isPreview && onShowBlockAdder && column.blocks.length === 0 && (
-          <div className="group/add-first flex items-center justify-center py-2">
+          <div className="group/add-first flex items-center justify-center py-4">
             <button
               type="button"
               className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors opacity-0 group-hover/add-first:opacity-100"
@@ -474,7 +478,7 @@ function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeB
             const block = row.blocks[0]
             const idx = blockIndexById.get(block.id) ?? 0
             return (
-              <div key={block.id}>
+              <div key={block.id} className="relative">
                 <SortableBlockItem
                   block={block}
                   section={section}
@@ -486,12 +490,12 @@ function ColumnRenderer({ column, section, doc, isPreview, overColumnId, activeB
                   overTargetBlockId={overTargetBlockId}
                   onContextMenu={onContextMenu}
                 />
-                {/* Add button after each block */}
+                {/* Add button after each block - positioned absolutely to not affect spacing */}
                 {!isPreview && onShowBlockAdder && (
-                  <div className="group/add flex items-center justify-center py-1 -my-1">
+                  <div className="group/add absolute left-0 right-0 -bottom-0 flex items-center justify-center h-0 overflow-visible z-10">
                     <button
                       type="button"
-                      className="flex items-center gap-1 px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent rounded transition-colors opacity-0 group-hover/add:opacity-100"
+                      className="flex items-center gap-1 px-2 py-0.5 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/90 backdrop-blur-sm rounded-full border border-border/50 transition-all opacity-0 group-hover/add:opacity-100 scale-90 group-hover/add:scale-100 shadow-sm"
                       onClick={() => onShowBlockAdder(section.id, column.id, block.id)}
                     >
                       <Plus className="size-3" />

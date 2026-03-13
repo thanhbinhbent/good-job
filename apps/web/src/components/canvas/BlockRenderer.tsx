@@ -1,6 +1,6 @@
 /* eslint-disable react-hooks/rules-of-hooks */
 /* eslint-disable react-hooks/exhaustive-deps */
-import { useEffect, useCallback, useReducer, useRef, useMemo, memo } from 'react'
+import { useEffect, useCallback, useReducer, useRef, useMemo, memo, useState } from 'react'
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import { StarterKit } from '@tiptap/starter-kit'
 import type { CanvasBlock, CanvasStyle, TextBlock } from '@binh-tran/shared'
@@ -378,8 +378,16 @@ export function BlockRenderer({
   isFirst = false, isLast = false,
   isSelected = false, isPreview = false, onClick, onContextMenu,
 }: BlockProps) {
-  const { editingBlockId, setEditingBlock, duplicateBlock, removeBlock, moveBlock, selectBlock } = useCanvasStore()
+  const { editingBlockId, setEditingBlock, duplicateBlock, removeBlock, moveBlock, selectBlock, updateBlock } = useCanvasStore()
   const isEditing = !isPreview && editingBlockId === block.id
+
+  // Inline editing states for simple text blocks
+  const [badgeEditing, setBadgeEditing] = useState(false)
+  const [badgeText, setBadgeText] = useState('')
+  const [statEditingValue, setStatEditingValue] = useState(false)
+  const [statEditingLabel, setStatEditingLabel] = useState(false)
+  const [statValue, setStatValue] = useState('')
+  const [statLabel, setStatLabel] = useState('')
 
   const handleDelete = useCallback(() => {
     removeBlock(sectionId, columnId, block.id)
@@ -758,7 +766,8 @@ export function BlockRenderer({
       marginBottom: block.marginBottom,
       position: 'relative',
       paddingLeft: 24,
-    }), [block.marginBottom])
+      fontFamily: style.fontFamily,
+    }), [block.marginBottom, style.fontFamily])
 
     return wrap(
       <div style={timelineStyle}>
@@ -778,8 +787,8 @@ export function BlockRenderer({
             No timeline entries
           </div>
         ) : (
-          block.entries.map((entry) => (
-            <div key={entry.id} style={{ position: 'relative', marginBottom: block.spacing }}>
+          block.entries.map((entry, idx) => (
+            <div key={entry.id} style={{ position: 'relative', marginBottom: idx === block.entries.length - 1 ? 0 : block.spacing }}>
               {/* Dot */}
               <div
                 style={{
@@ -790,24 +799,28 @@ export function BlockRenderer({
                   height: block.dotSize,
                   borderRadius: '50%',
                   backgroundColor: toRgba(block.dotColor),
+                  zIndex: 1,
                 }}
               />
               {/* Content */}
-              <div style={{ fontSize: 11, fontWeight: '600', color: 'var(--color-muted-foreground)' }}>
+              <div style={{ fontSize: 11, fontWeight: '600', color: 'var(--color-muted-foreground)', fontFamily: block.fontFamily }}>
                 {entry.year}
               </div>
-              <div style={{ fontSize: 14, fontWeight: '600', marginTop: 2 }}>
-                {entry.title}
-              </div>
+              <div
+                style={{ fontSize: block.titleSize, fontWeight: block.titleWeight, marginTop: 2, fontFamily: block.fontFamily }}
+                dangerouslySetInnerHTML={{ __html: entry.title }}
+              />
               {entry.subtitle && (
-                <div style={{ fontSize: 12, color: 'var(--color-muted-foreground)', marginTop: 2 }}>
-                  {entry.subtitle}
-                </div>
+                <div
+                  style={{ fontSize: block.subtitleSize, color: 'var(--color-muted-foreground)', marginTop: 2, fontFamily: block.fontFamily }}
+                  dangerouslySetInnerHTML={{ __html: entry.subtitle }}
+                />
               )}
               {entry.description && (
-                <div style={{ fontSize: 12, marginTop: 4, lineHeight: 1.5 }}>
-                  {entry.description}
-                </div>
+                <div
+                  style={{ fontSize: block.descriptionSize, marginTop: 4, lineHeight: 1.5, fontFamily: block.fontFamily }}
+                  dangerouslySetInnerHTML={{ __html: entry.description }}
+                />
               )}
             </div>
           ))
@@ -829,10 +842,52 @@ export function BlockRenderer({
       fontSize: block.fontSize,
       fontWeight: block.fontWeight,
       marginBottom: block.marginBottom,
-      fontFamily: style.fontFamily,
-    }), [block, style.fontFamily])
+      fontFamily: block.fontFamily || style.fontFamily,
+      cursor: !isPreview ? 'text' : 'default',
+    }), [block, style.fontFamily, isPreview])
 
-    return wrap(<span style={badgeStyle}>{block.text}</span>)
+    const handleSave = () => {
+      if (badgeText.trim()) {
+        updateBlock(sectionId, columnId, block.id, { text: badgeText.trim() } as Partial<CanvasBlock>)
+      }
+      setBadgeEditing(false)
+    }
+
+    return wrap(
+      badgeEditing && !isPreview ? (
+        <input
+          type="text"
+          value={badgeText}
+          autoFocus
+          style={{
+            ...badgeStyle,
+            outline: '2px solid var(--color-canvas-focus-ring)',
+            outlineOffset: 2,
+          }}
+          onChange={(e) => setBadgeText(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSave()
+            if (e.key === 'Escape') {
+              setBadgeText(block.text)
+              setBadgeEditing(false)
+            }
+          }}
+        />
+      ) : (
+        <span
+          style={badgeStyle}
+          onDoubleClick={() => {
+            if (!isPreview) {
+              setBadgeText(block.text)
+              setBadgeEditing(true)
+            }
+          }}
+        >
+          {block.text}
+        </span>
+      )
+    )
   }
 
   if (block.kind === 'stat') {
@@ -843,22 +898,113 @@ export function BlockRenderer({
 
     const valueStyle = useMemo<React.CSSProperties>(() => ({
       fontSize: block.valueSize,
-      fontWeight: '700',
+      fontWeight: block.valueWeight,
       color: toRgba(block.valueColor),
       lineHeight: 1,
-    }), [block.valueSize, block.valueColor])
+      fontFamily: block.fontFamily || style.fontFamily,
+      cursor: !isPreview ? 'text' : 'default',
+    }), [block.valueSize, block.valueWeight, block.valueColor, block.fontFamily, style.fontFamily, isPreview])
 
     const labelStyle = useMemo<React.CSSProperties>(() => ({
       fontSize: block.labelSize,
+      fontWeight: block.labelWeight,
       color: toRgba(block.labelColor),
       marginTop: 4,
-      fontFamily: style.fontFamily,
-    }), [block.labelSize, block.labelColor, style.fontFamily])
+      fontFamily: block.fontFamily || style.fontFamily,
+      cursor: !isPreview ? 'text' : 'default',
+    }), [block.labelSize, block.labelColor, style.fontFamily, isPreview])
+
+    const handleSaveValue = () => {
+      if (statValue.trim()) {
+        updateBlock(sectionId, columnId, block.id, { value: statValue.trim() } as Partial<CanvasBlock>)
+      }
+      setStatEditingValue(false)
+    }
+
+    const handleSaveLabel = () => {
+      updateBlock(sectionId, columnId, block.id, { label: statLabel.trim() } as Partial<CanvasBlock>)
+      setStatEditingLabel(false)
+    }
 
     return wrap(
       <div style={statContainerStyle}>
-        <div style={valueStyle}>{block.value}</div>
-        {block.label && <div style={labelStyle}>{block.label}</div>}
+        {statEditingValue && !isPreview ? (
+          <input
+            type="text"
+            value={statValue}
+            autoFocus
+            style={{
+              ...valueStyle,
+              outline: '2px solid var(--color-canvas-focus-ring)',
+              outlineOffset: 2,
+              border: 'none',
+              background: 'transparent',
+              textAlign: block.align,
+              width: '100%',
+            }}
+            onChange={(e) => setStatValue(e.target.value)}
+            onBlur={handleSaveValue}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSaveValue()
+              if (e.key === 'Escape') {
+                setStatValue(block.value)
+                setStatEditingValue(false)
+              }
+            }}
+          />
+        ) : (
+          <div
+            style={valueStyle}
+            onDoubleClick={() => {
+              if (!isPreview) {
+                setStatValue(block.value)
+                setStatEditingValue(true)
+              }
+            }}
+          >
+            {block.value}
+          </div>
+        )}
+        {(block.label || !isPreview) && (
+          statEditingLabel && !isPreview ? (
+            <input
+              type="text"
+              value={statLabel}
+              autoFocus
+              placeholder="Label"
+              style={{
+                ...labelStyle,
+                outline: '2px solid var(--color-canvas-focus-ring)',
+                outlineOffset: 2,
+                border: 'none',
+                background: 'transparent',
+                textAlign: block.align,
+                width: '100%',
+              }}
+              onChange={(e) => setStatLabel(e.target.value)}
+              onBlur={handleSaveLabel}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleSaveLabel()
+                if (e.key === 'Escape') {
+                  setStatLabel(block.label)
+                  setStatEditingLabel(false)
+                }
+              }}
+            />
+          ) : (
+            <div
+              style={labelStyle}
+              onDoubleClick={() => {
+                if (!isPreview) {
+                  setStatLabel(block.label)
+                  setStatEditingLabel(true)
+                }
+              }}
+            >
+              {block.label || (!isPreview && 'Double-click to add label')}
+            </div>
+          )
+        )}
       </div>
     )
   }
@@ -870,7 +1016,8 @@ export function BlockRenderer({
       borderRadius: block.borderRadius,
       padding: block.padding,
       marginBottom: block.marginBottom,
-    }), [block])
+      fontFamily: style.fontFamily,
+    }), [block, style.fontFamily])
 
     return wrap(
       <div style={cardStyle}>
@@ -884,21 +1031,29 @@ export function BlockRenderer({
               borderRadius: block.borderRadius / 2,
               marginBottom: 12,
               objectFit: 'cover',
+              maxHeight: 200,
+            }}
+            onError={(e) => {
+              // Hide broken image
+              (e.target as HTMLImageElement).style.display = 'none'
             }}
           />
         )}
-        <div style={{ fontSize: 16, fontWeight: '600', marginBottom: 4 }}>
-          {block.title}
-        </div>
+        <div
+          style={{ fontSize: block.titleSize, fontWeight: block.titleWeight, marginBottom: 4, fontFamily: block.fontFamily || style.fontFamily }}
+          dangerouslySetInnerHTML={{ __html: block.title || 'Untitled' }}
+        />
         {block.subtitle && (
-          <div style={{ fontSize: 12, color: 'var(--color-muted-foreground)', marginBottom: 8 }}>
-            {block.subtitle}
-          </div>
+          <div
+            style={{ fontSize: block.subtitleSize, color: 'var(--color-muted-foreground)', marginBottom: 8, fontFamily: block.fontFamily || style.fontFamily }}
+            dangerouslySetInnerHTML={{ __html: block.subtitle }}
+          />
         )}
         {block.description && (
-          <div style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 8 }}>
-            {block.description}
-          </div>
+          <div
+            style={{ fontSize: block.descriptionSize, lineHeight: 1.5, marginBottom: 8, fontFamily: block.fontFamily || style.fontFamily }}
+            dangerouslySetInnerHTML={{ __html: block.description }}
+          />
         )}
         {block.tags.length > 0 && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
@@ -911,6 +1066,7 @@ export function BlockRenderer({
                   color: 'var(--color-muted-foreground)',
                   padding: '2px 6px',
                   borderRadius: 3,
+                  fontFamily: style.fontFamily,
                 }}
               >
                 {tag}
@@ -930,13 +1086,14 @@ export function BlockRenderer({
       gap: block.gap,
       marginBottom: block.marginBottom,
       alignItems: block.layout === 'horizontal' ? 'center' : 'flex-start',
-    }), [block.layout, block.gap, block.marginBottom])
+      fontFamily: style.fontFamily,
+    }), [block.layout, block.gap, block.marginBottom, style.fontFamily])
 
     const getPlatformIcon = (platform: string) => {
       const icons = {
         email: '✉',
-        linkedin: 'in',
-        github: 'gh',
+        linkedin: '💼',
+        github: '🐙',
         twitter: '𝕏',
         website: '🌐',
         phone: '📞',
@@ -965,7 +1122,11 @@ export function BlockRenderer({
                 color: toRgba(block.color),
                 textDecoration: 'none',
                 fontSize: block.iconSize,
+                cursor: isPreview ? 'pointer' : 'default',
+                transition: 'opacity 0.2s',
               }}
+              onMouseEnter={(e) => { if (isPreview) e.currentTarget.style.opacity = '0.7' }}
+              onMouseLeave={(e) => { if (isPreview) e.currentTarget.style.opacity = '1' }}
             >
               <span style={{ fontSize: block.iconSize }}>
                 {getPlatformIcon(link.platform)}

@@ -191,9 +191,16 @@
     transition: transform 0.15s ease-out, box-shadow 0.15s ease-out;
   }
 
-  .canvas-block:hover:not(.canvas-block-dragging) {
+  .canvas-block:hover:not(.canvas-block-dragging):not(.dragging .canvas-block) {
     transform: scale(1.005);
     box-shadow: 0 2px 8px oklch(0 0 0 / 0.08);
+  }
+
+  /* Prevent hover effects during drag */
+  .dragging .canvas-block {
+    transform: none !important;
+    box-shadow: none !important;
+    transition: none !important;
   }
 
   /* Canvas block focus visible for keyboard navigation */

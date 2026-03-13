@@ -264,6 +264,8 @@ function stat(value: string, label: string): CanvasBlock {
   return {
     kind: 'stat', id: id(), value, label,
     valueSize: 32, labelSize: 12,
+    valueWeight: '700', labelWeight: '400',
+    fontFamily: undefined,
     valueColor: { hex: '#111111', opacity: 1 },
     labelColor: { hex: '#6b7280', opacity: 1 },
     align: 'center', marginBottom: 12, rowWidth: 100,
@@ -277,6 +279,9 @@ function card(title: string, description: string, tags: string[] = [], imageUrl?
     backgroundColor: { hex: '#f9fafb', opacity: 1 },
     borderColor: { hex: '#e5e7eb', opacity: 1 },
     borderWidth: 1, borderRadius: 8, padding: 16,
+    titleSize: 16, titleWeight: '600',
+    subtitleSize: 13, descriptionSize: 13,
+    fontFamily: undefined,
     marginBottom: 12, rowWidth: 100,
   }
 }
@@ -288,6 +293,9 @@ function timeline(entries: Array<{ year: string; title: string; subtitle?: strin
     dotColor: { hex: '#2563eb', opacity: 1 },
     lineColor: { hex: '#e5e7eb', opacity: 1 },
     dotSize: 8, lineWidth: 2, spacing: 16,
+    titleSize: 14, titleWeight: '600',
+    subtitleSize: 12, descriptionSize: 12,
+    fontFamily: undefined,
     marginBottom: 12, rowWidth: 100,
   }
 }

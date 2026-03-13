@@ -8,42 +8,76 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch'
 import { Button } from '@/components/ui/button'
 import { Trash2, Copy, ChevronUp, ChevronDown, X } from 'lucide-react'
-import { RichTextSection } from '@/components/editor/RichTextSection'
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { Badge } from '@/components/ui/badge'
-import { useState } from 'react'
-import { toRgba } from './canvas-utils'
+import { useState, useCallback, memo } from 'react'
 
 // ── Small reusable form controls ──────────────────────────────────────────────
 
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
+const Row = memo(({ label, children }: { label: string; children: React.ReactNode }) => {
   return (
-    <div className="grid grid-cols-[82px_minmax(0,1fr)] items-start gap-2 py-0.5 min-w-0">
-      <Label className="text-[11px] font-medium text-muted-foreground truncate leading-8">{label}</Label>
-      {children}
+    <div className="grid grid-cols-[76px_minmax(0,1fr)] items-center gap-2.5 py-1 min-w-0">
+      <Label className="text-[10.5px] font-medium text-muted-foreground/90 truncate">{label}</Label>
+      <div className="min-w-0">{children}</div>
     </div>
   )
-}
+})
 
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
+const Group = memo(({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen)
+
   return (
-    <div className="space-y-2 rounded-md border border-border/60 bg-muted/20 p-2.5">
-      <div className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">{title}</div>
-      {children}
+    <div className="rounded-lg border border-border/50 bg-card/50 overflow-hidden">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-3 py-2 hover:bg-muted/30 transition-colors"
+      >
+        <span className="text-[10.5px] font-semibold uppercase tracking-wide text-foreground/80">{title}</span>
+        <ChevronDown className={`size-3.5 text-muted-foreground transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+      {isOpen && (
+        <div className="px-3 py-2.5 space-y-1.5 border-t border-border/50">
+          {children}
+        </div>
+      )}
     </div>
   )
-}
+})
 
-function NumInput({ value, onChange, min = 0, max = 999, step = 1 }: {
-  value: number; onChange: (v: number) => void; min?: number; max?: number; step?: number
-}) {
+const NumInput = memo(({ value, onChange, min = 0, max = 999, step = 1, suffix }: {
+  value: number
+  onChange: (v: number) => void
+  min?: number
+  max?: number
+  step?: number
+  suffix?: string
+}) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = Number(e.target.value)
+    if (!isNaN(val) && val >= min && val <= max) {
+      onChange(val)
+    }
+  }, [onChange, min, max])
+
   return (
-    <Input
-      type="number" value={value} min={min} max={max} step={step}
-      className="h-8 text-xs"
-      onChange={(e) => onChange(Number(e.target.value))}
-    />
+    <div className="relative">
+      <Input
+        type="number"
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        className="h-8 text-xs pr-8"
+        onChange={handleChange}
+      />
+      {suffix && (
+        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">
+          {suffix}
+        </span>
+      )}
+    </div>
   )
-}
+})
 
 function toColorInputHex(hex?: string): string {
   const raw = (hex ?? '').trim()
@@ -55,27 +89,42 @@ function toColorInputHex(hex?: string): string {
 }
 
 function ColorInput({ value, onChange }: { value: CanvasColor; onChange: (c: CanvasColor) => void }) {
+  const handleHexChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange({ ...value, hex: e.target.value })
+  }, [value, onChange])
+
+  const handleOpacityChange = useCallback(([v]: number[]) => {
+    onChange({ ...value, opacity: (v ?? 100) / 100 })
+  }, [value, onChange])
+
   return (
-    <div className="grid grid-cols-1 gap-2 min-w-0">
-      <div className="grid grid-cols-[28px_minmax(0,1fr)] items-center gap-2 min-w-0">
+    <div className="space-y-2 min-w-0">
+      <div className="flex items-center gap-2 min-w-0">
         <input
-          type="color" value={toColorInputHex(value.hex)} className="w-7 h-7 rounded border border-border cursor-pointer p-0"
-          onChange={(e) => onChange({ ...value, hex: e.target.value })}
+          type="color"
+          value={toColorInputHex(value.hex)}
+          className="w-9 h-8 rounded-md border border-border cursor-pointer"
+          onChange={handleHexChange}
         />
-        <Input value={value.hex} className="h-8 text-xs font-mono w-full min-w-0"
-          onChange={(e) => onChange({ ...value, hex: e.target.value })} />
+        <Input
+          value={value.hex}
+          className="h-8 text-xs font-mono flex-1 min-w-0"
+          onChange={handleHexChange}
+        />
       </div>
-      <div className="grid grid-cols-[14px_minmax(0,1fr)_32px] items-center gap-2 min-w-0">
-        <span className="text-[10px] text-muted-foreground text-center">α</span>
+      <div className="flex items-center gap-2 min-w-0">
+        <span className="text-[10px] text-muted-foreground w-5 text-center shrink-0">α</span>
         <Slider
           value={[value.opacity * 100]}
           min={0}
           max={100}
           step={1}
-          className="w-full min-w-0"
-          onValueChange={([v]) => onChange({ ...value, opacity: (v ?? 100) / 100 })}
+          className="flex-1 min-w-0"
+          onValueChange={handleOpacityChange}
         />
-        <span className="text-[10px] text-muted-foreground text-right">{Math.round(value.opacity * 100)}</span>
+        <span className="text-[10px] text-muted-foreground w-10 text-right shrink-0 tabular-nums">
+          {Math.round(value.opacity * 100)}%
+        </span>
       </div>
     </div>
   )
@@ -89,11 +138,52 @@ export function BlockPropertiesPanel() {
     updateBlock, removeBlock, duplicateBlock, moveBlock, selectBlock,
   } = useCanvasStore()
 
+  // Memoize update function for performance
+  const update = useCallback((patch: Partial<CanvasBlock>) => {
+    if (selectedSectionId && selectedColumnId && selectedBlockId) {
+      updateBlock(selectedSectionId, selectedColumnId, selectedBlockId, patch)
+    }
+  }, [updateBlock, selectedSectionId, selectedColumnId, selectedBlockId])
+
+  const handleRemove = useCallback(() => {
+    if (selectedSectionId && selectedColumnId && selectedBlockId) {
+      removeBlock(selectedSectionId, selectedColumnId, selectedBlockId)
+      selectBlock(null, null, null)
+    }
+  }, [removeBlock, selectBlock, selectedSectionId, selectedColumnId, selectedBlockId])
+
+  const handleDuplicate = useCallback(() => {
+    if (selectedSectionId && selectedColumnId && selectedBlockId) {
+      duplicateBlock(selectedSectionId, selectedColumnId, selectedBlockId)
+    }
+  }, [duplicateBlock, selectedSectionId, selectedColumnId, selectedBlockId])
+
+  const handleMoveUp = useCallback(() => {
+    if (selectedSectionId && selectedColumnId && selectedBlockId) {
+      moveBlock(selectedSectionId, selectedColumnId, selectedBlockId, 'up')
+    }
+  }, [moveBlock, selectedSectionId, selectedColumnId, selectedBlockId])
+
+  const handleMoveDown = useCallback(() => {
+    if (selectedSectionId && selectedColumnId && selectedBlockId) {
+      moveBlock(selectedSectionId, selectedColumnId, selectedBlockId, 'down')
+    }
+  }, [moveBlock, selectedSectionId, selectedColumnId, selectedBlockId])
+
+  const handleClose = useCallback(() => {
+    selectBlock(null, null, null)
+  }, [selectBlock])
+
   if (!doc || !selectedSectionId || !selectedColumnId || !selectedBlockId) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-xs p-6 text-center gap-2">
-        <span className="text-2xl">☝️</span>
-        <p>Click any element in the canvas to edit its properties</p>
+      <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-xs p-6 text-center gap-3">
+        <div className="size-12 rounded-full bg-muted/50 flex items-center justify-center">
+          <span className="text-2xl">✨</span>
+        </div>
+        <div className="space-y-1">
+          <p className="font-medium text-foreground">No Block Selected</p>
+          <p className="text-[11px]">Click any element on the canvas to edit its properties</p>
+        </div>
       </div>
     )
   }
@@ -104,45 +194,73 @@ export function BlockPropertiesPanel() {
 
   if (!block) return null
 
-  const update = (patch: Partial<CanvasBlock>) =>
-    updateBlock(selectedSectionId, selectedColumnId, selectedBlockId, patch)
-
   const col = column!
   const blockIndex = col.blocks.findIndex((b) => b.id === selectedBlockId)
+  const isFirst = blockIndex === 0
+  const isLast = blockIndex === col.blocks.length - 1
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden bg-background">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+      <div className="flex items-center justify-between px-3 py-2.5 border-b border-border shrink-0 bg-muted/30">
         <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="text-[10px] uppercase">{block.kind}</Badge>
-          <span className="text-xs text-muted-foreground">Properties</span>
+          <Badge variant="secondary" className="text-[9.5px] uppercase font-semibold px-2 py-0.5">{block.kind}</Badge>
+          <span className="text-[11px] text-muted-foreground font-medium">Block Properties</span>
         </div>
-        <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="size-6" title="Move up" disabled={blockIndex === 0}
-            onClick={() => moveBlock(selectedSectionId, selectedColumnId, selectedBlockId, 'up')}>
-            <ChevronUp className="size-3" />
+        <div className="flex items-center gap-0.5">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 hover:bg-muted"
+            title="Move up"
+            disabled={isFirst}
+            onClick={handleMoveUp}
+          >
+            <ChevronUp className="size-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-6" title="Move down" disabled={blockIndex === col.blocks.length - 1}
-            onClick={() => moveBlock(selectedSectionId, selectedColumnId, selectedBlockId, 'down')}>
-            <ChevronDown className="size-3" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 hover:bg-muted"
+            title="Move down"
+            disabled={isLast}
+            onClick={handleMoveDown}
+          >
+            <ChevronDown className="size-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-6" title="Duplicate"
-            onClick={() => duplicateBlock(selectedSectionId, selectedColumnId, selectedBlockId)}>
-            <Copy className="size-3" />
+          <div className="w-px h-4 bg-border mx-0.5" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 hover:bg-muted"
+            title="Duplicate"
+            onClick={handleDuplicate}
+          >
+            <Copy className="size-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-6 text-destructive hover:text-destructive" title="Delete"
-            onClick={() => { removeBlock(selectedSectionId, selectedColumnId, selectedBlockId); selectBlock(null, null, null) }}>
-            <Trash2 className="size-3" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+            title="Delete"
+            onClick={handleRemove}
+          >
+            <Trash2 className="size-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="size-6" onClick={() => selectBlock(null, null, null)}>
-            <X className="size-3" />
+          <div className="w-px h-4 bg-border mx-0.5" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 hover:bg-muted"
+            onClick={handleClose}
+          >
+            <X className="size-3.5" />
           </Button>
         </div>
       </div>
 
       {/* Properties */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
         {block.kind === 'text' && (
           <TextBlockEditor block={block} update={update} />
         )}
@@ -200,61 +318,33 @@ export function BlockPropertiesPanel() {
 function DualTextBlockEditor({ block, update }: { block: import('@binh-tran/shared').DualTextBlock; update: (p: Partial<CanvasBlock>) => void }) {
   const p = (patch: object) => update(patch as Partial<CanvasBlock>)
 
-  const leftStyle: React.CSSProperties = {
-    fontFamily: block.fontFamily || 'Inter',
-    fontSize: block.fontSize,
-    fontWeight: block.fontWeight,
-    fontStyle: block.fontStyle,
-    color: toRgba(block.color),
-    lineHeight: block.lineHeight,
-    letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
-  }
-
-  const rightStyle: React.CSSProperties = {
-    fontFamily: block.fontFamily || 'Inter',
-    fontSize: block.fontSize,
-    fontWeight: block.rightFontWeight,
-    color: toRgba(block.rightColor),
-    lineHeight: block.lineHeight,
-    letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
-    textAlign: 'right',
-  }
-
   return (
     <div className="space-y-3">
       <Group title="Content">
         <div className="space-y-2">
           <Label className="text-[11px] text-muted-foreground">Left</Label>
-          <div
-            className="min-h-[64px] overflow-hidden rounded border border-border bg-background transition-colors focus-within:border-ring/70 [&_.ProseMirror]:!m-0 [&_.ProseMirror]:!p-0 [&_.ProseMirror]:!outline-none"
-            style={leftStyle}
-          >
-            <RichTextSection
-              key={`${block.id}-left`}
-              content={block.leftContent}
-              onSave={(html) => p({ leftContent: html })}
-              isAdmin
-              debounceMs={220}
-              className="!border-0 !rounded-none hover:!border-0 focus:!border-0"
-            />
-          </div>
+          <RichTextEditor
+            key={`${block.id}-left`}
+            content={block.leftContent}
+            onSave={(html) => p({ leftContent: html })}
+            isAdmin
+            debounceMs={300}
+            showToolbar={true}
+            compact={true}
+          />
         </div>
 
         <div className="space-y-2">
           <Label className="text-[11px] text-muted-foreground">Right</Label>
-          <div
-            className="min-h-[52px] overflow-hidden rounded border border-border bg-background transition-colors focus-within:border-ring/70 [&_.ProseMirror]:!m-0 [&_.ProseMirror]:!p-0 [&_.ProseMirror]:!outline-none"
-            style={rightStyle}
-          >
-            <RichTextSection
-              key={`${block.id}-right`}
-              content={block.rightContent}
-              onSave={(html) => p({ rightContent: html })}
-              isAdmin
-              debounceMs={220}
-              className="!border-0 !rounded-none hover:!border-0 focus:!border-0"
-            />
-          </div>
+          <RichTextEditor
+            key={`${block.id}-right`}
+            content={block.rightContent}
+            onSave={(html) => p({ rightContent: html })}
+            isAdmin
+            debounceMs={300}
+            showToolbar={true}
+            compact={true}
+          />
         </div>
       </Group>
 
@@ -312,34 +402,19 @@ function DualTextBlockEditor({ block, update }: { block: import('@binh-tran/shar
 
 function TextBlockEditor({ block, update }: { block: import('@binh-tran/shared').TextBlock; update: (p: Partial<CanvasBlock>) => void }) {
   const p = (patch: object) => update(patch as Partial<CanvasBlock>)
-  const contentStyle: React.CSSProperties = {
-    fontFamily: block.fontFamily || 'Inter',
-    fontSize: block.fontSize,
-    fontWeight: block.fontWeight,
-    fontStyle: block.fontStyle,
-    color: toRgba(block.color),
-    textAlign: block.align,
-    lineHeight: block.lineHeight,
-    letterSpacing: block.letterSpacing ? `${block.letterSpacing}em` : undefined,
-    textTransform: block.textTransform === 'none' ? undefined : block.textTransform,
-  }
 
   return (
     <div className="space-y-3">
       <Group title="Content">
-        <div
-          className="min-h-[80px] overflow-hidden rounded border border-border bg-background transition-colors focus-within:border-ring/70 [&_.ProseMirror]:!m-0 [&_.ProseMirror]:!p-0 [&_.ProseMirror]:!outline-none"
-          style={contentStyle}
-        >
-          <RichTextSection
-            key={block.id}
-            content={block.content}
-            onSave={(html) => p({ content: html })}
-            isAdmin
-            debounceMs={0}
-            className="!border-0 !rounded-none hover:!border-0 focus:!border-0"
-          />
-        </div>
+        <RichTextEditor
+          key={block.id}
+          content={block.content}
+          onSave={(html) => p({ content: html })}
+          isAdmin
+          debounceMs={300}
+          showToolbar={true}
+          compact={false}
+        />
       </Group>
 
       <Group title="Typography">
@@ -608,6 +683,7 @@ function RatingBlockEditor({ block, update }: { block: import('@binh-tran/shared
 function TimelineBlockEditor({ block, update }: { block: import('@binh-tran/shared').TimelineBlock; update: (p: Partial<CanvasBlock>) => void }) {
   const p = (patch: object) => update(patch as Partial<CanvasBlock>)
   const [newEntry, setNewEntry] = useState({ year: '', title: '', subtitle: '', description: '' })
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null)
 
   const addEntry = () => {
     if (!newEntry.year.trim() || !newEntry.title.trim()) return
@@ -623,32 +699,96 @@ function TimelineBlockEditor({ block, update }: { block: import('@binh-tran/shar
     setNewEntry({ year: '', title: '', subtitle: '', description: '' })
   }
 
+  const updateEntry = (entryId: string, field: string, value: string) => {
+    p({
+      entries: block.entries.map(e =>
+        e.id === entryId ? { ...e, [field]: value } : e
+      )
+    })
+  }
+
   return (
     <div className="space-y-3">
       <Group title="Timeline Entries">
-        <div className="space-y-2 max-h-[300px] overflow-y-auto">
-          {block.entries.map((entry, i) => (
-            <div key={entry.id} className="rounded border border-border p-2 space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold">{entry.year} - {entry.title}</span>
-                <button onClick={() => p({ entries: block.entries.filter((_, j) => j !== i) })}
-                  className="text-muted-foreground hover:text-destructive">
-                  <X className="size-3" />
-                </button>
-              </div>
-              {entry.subtitle && <p className="text-[10px] text-muted-foreground">{entry.subtitle}</p>}
+        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          {block.entries.length === 0 ? (
+            <div className="text-[11px] text-muted-foreground text-center py-4">
+              No timeline entries yet. Add your first entry below.
             </div>
-          ))}
+          ) : (
+            block.entries.map((entry, i) => (
+              <div key={entry.id} className="rounded border border-border p-2 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <Input
+                    value={entry.year}
+                    className="h-7 text-xs w-20"
+                    onChange={(e) => updateEntry(entry.id, 'year', e.target.value)}
+                  />
+                  <button onClick={() => p({ entries: block.entries.filter((_, j) => j !== i) })}
+                    className="text-muted-foreground hover:text-destructive shrink-0">
+                    <X className="size-3" />
+                  </button>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px]">Title</Label>
+                  <RichTextEditor
+                    content={entry.title}
+                    onSave={(html) => updateEntry(entry.id, 'title', html)}
+                    isAdmin
+                    debounceMs={300}
+                    showToolbar={true}
+                    compact={true}
+                    className="text-xs [&_.ProseMirror]:!text-xs"
+                  />
+                </div>
+                {editingEntryId === entry.id ? (
+                  <>
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Subtitle</Label>
+                      <RichTextEditor
+                        content={entry.subtitle || ''}
+                        onSave={(html) => updateEntry(entry.id, 'subtitle', html)}
+                        isAdmin
+                        debounceMs={300}
+                        showToolbar={true}
+                        compact={true}
+                        className="text-xs [&_.ProseMirror]:!text-xs"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-[10px]">Description</Label>
+                      <RichTextEditor
+                        content={entry.description || ''}
+                        onSave={(html) => updateEntry(entry.id, 'description', html)}
+                        isAdmin
+                        debounceMs={300}
+                        showToolbar={true}
+                        compact={true}
+                        className="text-xs [&_.ProseMirror]:!text-xs"
+                      />
+                    </div>
+                    <Button size="sm" variant="ghost" className="h-6 text-xs w-full" onClick={() => setEditingEntryId(null)}>
+                      Collapse
+                    </Button>
+                  </>
+                ) : (
+                  <Button size="sm" variant="ghost" className="h-6 text-xs w-full" onClick={() => setEditingEntryId(entry.id)}>
+                    Edit Details
+                  </Button>
+                )}
+              </div>
+            ))
+          )}
         </div>
 
         <div className="space-y-2 pt-2 border-t border-border">
-          <Input value={newEntry.year} placeholder="Year" className="h-7 text-xs"
+          <Input value={newEntry.year} placeholder="Year (e.g., 2024)" className="h-7 text-xs"
             onChange={(e) => setNewEntry({ ...newEntry, year: e.target.value })} />
           <Input value={newEntry.title} placeholder="Title" className="h-7 text-xs"
             onChange={(e) => setNewEntry({ ...newEntry, title: e.target.value })} />
-          <Input value={newEntry.subtitle} placeholder="Subtitle (optional)" className="h-7 text-xs"
-            onChange={(e) => setNewEntry({ ...newEntry, subtitle: e.target.value })} />
-          <Button size="sm" className="h-7 text-xs w-full" onClick={addEntry}>Add Entry</Button>
+          <Button size="sm" className="h-7 text-xs w-full" onClick={addEntry} disabled={!newEntry.year.trim() || !newEntry.title.trim()}>
+            Add Entry
+          </Button>
         </div>
       </Group>
 
@@ -658,6 +798,32 @@ function TimelineBlockEditor({ block, update }: { block: import('@binh-tran/shar
         <Row label="Dot size"><NumInput value={block.dotSize} min={4} max={20} onChange={(v) => p({ dotSize: v })} /></Row>
         <Row label="Line width"><NumInput value={block.lineWidth} min={1} max={6} onChange={(v) => p({ lineWidth: v })} /></Row>
         <Row label="Spacing"><NumInput value={block.spacing} min={8} max={40} onChange={(v) => p({ spacing: v })} /></Row>
+      </Group>
+
+      <Group title="Typography">
+        <Row label="Title size"><NumInput value={block.titleSize} min={10} max={24} onChange={(v) => p({ titleSize: v })} /></Row>
+        <Row label="Title weight">
+          <Select value={block.titleWeight} onValueChange={(v) => p({ titleWeight: v })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(['300','400','500','600','700','800'] as const).map((w) => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
+        <Row label="Subtitle size"><NumInput value={block.subtitleSize} min={8} max={18} onChange={(v) => p({ subtitleSize: v })} /></Row>
+        <Row label="Description size"><NumInput value={block.descriptionSize} min={8} max={18} onChange={(v) => p({ descriptionSize: v })} /></Row>
+        <Row label="Font family">
+          <Select value={block.fontFamily || 'default'} onValueChange={(v) => p({ fontFamily: v === 'default' ? undefined : v })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Default</SelectItem>
+              {FONT_FAMILIES.map(ff => <SelectItem key={ff} value={ff}>{ff}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
+      </Group>
+
+      <Group title="Layout">
         <Row label="Margin↓"><NumInput value={block.marginBottom} min={0} max={80} onChange={(v) => p({ marginBottom: v })} /></Row>
       </Group>
     </div>
@@ -676,12 +842,24 @@ function BadgeBlockEditor({ block, update }: { block: import('@binh-tran/shared'
         <Row label="BG color"><ColorInput value={block.backgroundColor} onChange={(c) => p({ backgroundColor: c })} /></Row>
         <Row label="Text color"><ColorInput value={block.textColor} onChange={(c) => p({ textColor: c })} /></Row>
         <Row label="Radius"><NumInput value={block.borderRadius} min={0} max={50} onChange={(v) => p({ borderRadius: v })} /></Row>
+      </Group>
+
+      <Group title="Typography">
         <Row label="Font size"><NumInput value={block.fontSize} min={8} max={24} onChange={(v) => p({ fontSize: v })} /></Row>
         <Row label="Font weight">
           <Select value={block.fontWeight} onValueChange={(v) => p({ fontWeight: v })}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               {(['300','400','500','600','700','800'] as const).map((w) => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
+        <Row label="Font family">
+          <Select value={block.fontFamily || 'default'} onValueChange={(v) => p({ fontFamily: v === 'default' ? undefined : v })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Default</SelectItem>
+              {FONT_FAMILIES.map(ff => <SelectItem key={ff} value={ff}>{ff}</SelectItem>)}
             </SelectContent>
           </Select>
         </Row>
@@ -708,6 +886,31 @@ function StatBlockEditor({ block, update }: { block: import('@binh-tran/shared')
       <Group title="Typography">
         <Row label="Value size"><NumInput value={block.valueSize} min={16} max={72} onChange={(v) => p({ valueSize: v })} /></Row>
         <Row label="Label size"><NumInput value={block.labelSize} min={8} max={24} onChange={(v) => p({ labelSize: v })} /></Row>
+        <Row label="Value weight">
+          <Select value={block.valueWeight} onValueChange={(v) => p({ valueWeight: v })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(['300','400','500','600','700','800'] as const).map((w) => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
+        <Row label="Label weight">
+          <Select value={block.labelWeight} onValueChange={(v) => p({ labelWeight: v })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(['300','400','500','600','700','800'] as const).map((w) => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
+        <Row label="Font family">
+          <Select value={block.fontFamily || 'default'} onValueChange={(v) => p({ fontFamily: v === 'default' ? undefined : v })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Default</SelectItem>
+              {FONT_FAMILIES.map(ff => <SelectItem key={ff} value={ff}>{ff}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
         <Row label="Align">
           <Select value={block.align} onValueChange={(v) => p({ align: v })}>
             <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
@@ -743,23 +946,60 @@ function CardBlockEditor({ block, update }: { block: import('@binh-tran/shared')
   return (
     <div className="space-y-3">
       <Group title="Content">
-        <Row label="Title"><Input value={block.title} className="h-8 text-xs" onChange={(e) => p({ title: e.target.value })} /></Row>
-        <Row label="Subtitle"><Input value={block.subtitle ?? ''} className="h-8 text-xs" onChange={(e) => p({ subtitle: e.target.value })} /></Row>
-        <Row label="Description"><Input value={block.description} className="h-8 text-xs" onChange={(e) => p({ description: e.target.value })} /></Row>
-        <Row label="Image URL"><Input value={block.imageUrl ?? ''} placeholder="https://…" className="h-8 text-xs" onChange={(e) => p({ imageUrl: e.target.value })} /></Row>
+        <div className="space-y-1">
+          <Label className="text-[11px] font-medium text-muted-foreground">Title</Label>
+          <RichTextEditor
+            content={block.title}
+            onSave={(html) => p({ title: html })}
+            isAdmin
+            debounceMs={300}
+            showToolbar={true}
+            compact={true}
+            className="text-xs [&_.ProseMirror]:!text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] font-medium text-muted-foreground">Subtitle (optional)</Label>
+          <RichTextEditor
+            content={block.subtitle || ''}
+            onSave={(html) => p({ subtitle: html || undefined })}
+            isAdmin
+            debounceMs={300}
+            showToolbar={true}
+            compact={true}
+            className="text-xs [&_.ProseMirror]:!text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label className="text-[11px] font-medium text-muted-foreground">Description</Label>
+          <RichTextEditor
+            content={block.description}
+            onSave={(html) => p({ description: html })}
+            isAdmin
+            debounceMs={300}
+            showToolbar={true}
+            compact={true}
+            className="text-xs [&_.ProseMirror]:!text-xs"
+          />
+        </div>
+        <Row label="Image URL"><Input value={block.imageUrl ?? ''} placeholder="https://… (optional)" className="h-8 text-xs" onChange={(e) => p({ imageUrl: e.target.value || undefined })} /></Row>
       </Group>
 
       <Group title="Tags">
         <div className="flex min-h-[32px] flex-wrap gap-1.5 rounded border border-border p-2">
-          {block.tags.map((t, i) => (
-            <span key={i} className="flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs">
-              {t}
-              <button onClick={() => p({ tags: block.tags.filter((_, j) => j !== i) })}
-                className="text-muted-foreground hover:text-destructive">
-                <X className="size-2.5" />
-              </button>
-            </span>
-          ))}
+          {block.tags.length === 0 ? (
+            <span className="text-[10px] text-muted-foreground">No tags added</span>
+          ) : (
+            block.tags.map((t, i) => (
+              <span key={i} className="flex items-center gap-1 rounded bg-muted px-2 py-0.5 text-xs">
+                {t}
+                <button onClick={() => p({ tags: block.tags.filter((_, j) => j !== i) })}
+                  className="text-muted-foreground hover:text-destructive">
+                  <X className="size-2.5" />
+                </button>
+              </span>
+            ))
+          )}
         </div>
         <div className="flex gap-1">
           <Input value={newTag} placeholder="Add tag…" className="h-7 text-xs flex-1"
@@ -776,6 +1016,32 @@ function CardBlockEditor({ block, update }: { block: import('@binh-tran/shared')
         <Row label="Border width"><NumInput value={block.borderWidth} min={0} max={8} onChange={(v) => p({ borderWidth: v })} /></Row>
         <Row label="Border radius"><NumInput value={block.borderRadius} min={0} max={24} onChange={(v) => p({ borderRadius: v })} /></Row>
         <Row label="Padding"><NumInput value={block.padding} min={8} max={40} onChange={(v) => p({ padding: v })} /></Row>
+      </Group>
+
+      <Group title="Typography">
+        <Row label="Title size"><NumInput value={block.titleSize} min={12} max={32} onChange={(v) => p({ titleSize: v })} /></Row>
+        <Row label="Title weight">
+          <Select value={block.titleWeight} onValueChange={(v) => p({ titleWeight: v })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {(['300','400','500','600','700','800'] as const).map((w) => <SelectItem key={w} value={w}>{w}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
+        <Row label="Subtitle size"><NumInput value={block.subtitleSize} min={10} max={24} onChange={(v) => p({ subtitleSize: v })} /></Row>
+        <Row label="Description size"><NumInput value={block.descriptionSize} min={10} max={24} onChange={(v) => p({ descriptionSize: v })} /></Row>
+        <Row label="Font family">
+          <Select value={block.fontFamily || 'default'} onValueChange={(v) => p({ fontFamily: v === 'default' ? undefined : v })}>
+            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="default">Default</SelectItem>
+              {FONT_FAMILIES.map(ff => <SelectItem key={ff} value={ff}>{ff}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        </Row>
+      </Group>
+
+      <Group title="Layout">
         <Row label="Margin↓"><NumInput value={block.marginBottom} min={0} max={80} onChange={(v) => p({ marginBottom: v })} /></Row>
       </Group>
     </div>
@@ -805,18 +1071,24 @@ function SocialLinksBlockEditor({ block, update }: { block: import('@binh-tran/s
     <div className="space-y-3">
       <Group title="Social Links">
         <div className="space-y-2 max-h-[200px] overflow-y-auto">
-          {block.links.map((link, i) => (
-            <div key={link.id} className="flex items-center justify-between rounded border border-border p-2">
-              <div className="flex-1 min-w-0">
-                <div className="text-xs font-medium truncate">{link.platform}</div>
-                <div className="text-[10px] text-muted-foreground truncate">{link.url}</div>
-              </div>
-              <button onClick={() => p({ links: block.links.filter((_, j) => j !== i) })}
-                className="text-muted-foreground hover:text-destructive ml-2">
-                <X className="size-3" />
-              </button>
+          {block.links.length === 0 ? (
+            <div className="text-[11px] text-muted-foreground text-center py-4">
+              No social links yet. Add your first link below.
             </div>
-          ))}
+          ) : (
+            block.links.map((link, i) => (
+              <div key={link.id} className="flex items-center justify-between rounded border border-border p-2">
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium truncate capitalize">{link.platform}</div>
+                  <div className="text-[10px] text-muted-foreground truncate">{link.url}</div>
+                </div>
+                <button onClick={() => p({ links: block.links.filter((_, j) => j !== i) })}
+                  className="text-muted-foreground hover:text-destructive ml-2">
+                  <X className="size-3" />
+                </button>
+              </div>
+            ))
+          )}
         </div>
 
         <div className="space-y-2 pt-2 border-t border-border">
@@ -824,7 +1096,7 @@ function SocialLinksBlockEditor({ block, update }: { block: import('@binh-tran/s
             <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               {['email','linkedin','github','twitter','website','phone'].map((p) =>
-                <SelectItem key={p} value={p}>{p}</SelectItem>
+                <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
               )}
             </SelectContent>
           </Select>
@@ -832,7 +1104,9 @@ function SocialLinksBlockEditor({ block, update }: { block: import('@binh-tran/s
             onChange={(e) => setNewLink({ ...newLink, url: e.target.value })} />
           <Input value={newLink.label} placeholder="Label (optional)" className="h-7 text-xs"
             onChange={(e) => setNewLink({ ...newLink, label: e.target.value })} />
-          <Button size="sm" className="h-7 text-xs w-full" onClick={addLink}>Add Link</Button>
+          <Button size="sm" className="h-7 text-xs w-full" onClick={addLink} disabled={!newLink.url.trim()}>
+            Add Link
+          </Button>
         </div>
       </Group>
 

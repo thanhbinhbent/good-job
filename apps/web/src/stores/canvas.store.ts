@@ -27,7 +27,7 @@ export function makeTextBlock(overrides?: Partial<import('@binh-tran/shared').Te
     align: 'left',
     lineHeight: 1.5,
     letterSpacing: 0,
-    marginBottom: 4,
+    marginBottom: 3, // Reduced from 4
     textTransform: 'none',
     rowWidth: 100,
     ...overrides,
@@ -44,7 +44,7 @@ export function makeDateBlock(overrides?: Partial<import('@binh-tran/shared').Da
     fontSize: 12,
     color: { hex: '#666666', opacity: 1 },
     align: 'left',
-    marginBottom: 4,
+    marginBottom: 3,
     rowWidth: 100,
     ...overrides,
   }
@@ -60,7 +60,7 @@ export function makeTagBlock(overrides?: Partial<import('@binh-tran/shared').Tag
     chipRadius: 4,
     fontSize: 11,
     gap: 6,
-    marginBottom: 8,
+    marginBottom: 6,
     rowWidth: 100,
     ...overrides,
   }
@@ -74,7 +74,7 @@ export function makeDividerBlock(overrides?: Partial<import('@binh-tran/shared')
     thickness: 1,
     style: 'solid',
     marginTop: 8,
-    marginBottom: 8,
+    marginBottom: 6,
     rowWidth: 100,
     ...overrides,
   }
@@ -95,7 +95,7 @@ export function makeRatingBlock(): import('@binh-tran/shared').RatingBlock {
     color: { hex: '#facc15', opacity: 1 },
     emptyColor: { hex: '#e5e7eb', opacity: 1 },
     size: 16,
-    marginBottom: 8,
+    marginBottom: 6,
     rowWidth: 100,
   }
 }
@@ -110,7 +110,12 @@ export function makeTimelineBlock(): import('@binh-tran/shared').TimelineBlock {
     dotSize: 8,
     lineWidth: 2,
     spacing: 16,
-    marginBottom: 12,
+    titleSize: 14,
+    titleWeight: '600',
+    subtitleSize: 12,
+    descriptionSize: 12,
+    fontFamily: undefined,
+    marginBottom: 6,
     rowWidth: 100,
   }
 }
@@ -126,7 +131,8 @@ export function makeBadgeBlock(): import('@binh-tran/shared').BadgeBlock {
     padding: { x: 8, y: 4 },
     fontSize: 11,
     fontWeight: '600',
-    marginBottom: 8,
+    fontFamily: undefined,
+    marginBottom: 6,
     rowWidth: 100,
   }
 }
@@ -139,10 +145,13 @@ export function makeStatBlock(): import('@binh-tran/shared').StatBlock {
     label: 'Years',
     valueSize: 32,
     labelSize: 12,
+    valueWeight: '700',
+    labelWeight: '400',
+    fontFamily: undefined,
     valueColor: { hex: '#111111', opacity: 1 },
     labelColor: { hex: '#6b7280', opacity: 1 },
     align: 'center',
-    marginBottom: 12,
+    marginBottom: 6,
     rowWidth: 100,
   }
 }
@@ -161,7 +170,12 @@ export function makeCardBlock(): import('@binh-tran/shared').CardBlock {
     borderWidth: 1,
     borderRadius: 8,
     padding: 16,
-    marginBottom: 12,
+    titleSize: 16,
+    titleWeight: '600',
+    subtitleSize: 13,
+    descriptionSize: 13,
+    fontFamily: undefined,
+    marginBottom: 6,
     rowWidth: 100,
   }
 }
@@ -176,7 +190,7 @@ export function makeSocialLinksBlock(): import('@binh-tran/shared').SocialLinksB
     gap: 12,
     showLabels: false,
     color: { hex: '#3b82f6', opacity: 1 },
-    marginBottom: 12,
+    marginBottom: 6,
     rowWidth: 100,
   }
 }
@@ -192,7 +206,7 @@ export function makeProgressBlock(): import('@binh-tran/shared').ProgressBlock {
     height: 6,
     showLabel: true,
     showValue: false,
-    marginBottom: 8,
+    marginBottom: 6,
     rowWidth: 100,
   }
 }
@@ -206,7 +220,7 @@ export function makeImageBlock(): import('@binh-tran/shared').ImageBlock {
     height: 80,
     radius: 50,
     align: 'left',
-    marginBottom: 12,
+    marginBottom: 6,
     rowWidth: 100,
   }
 }
@@ -219,7 +233,7 @@ export function makeLinkBlock(): import('@binh-tran/shared').LinkBlock {
     url: '',
     fontSize: 12,
     color: { hex: '#2563eb', opacity: 1 },
-    marginBottom: 4,
+    marginBottom: 3,
     rowWidth: 100,
   }
 }
@@ -240,7 +254,7 @@ export function makeDualTextBlock(overrides?: Partial<import('@binh-tran/shared'
     rightFontWeight: '400',
     rightColor: { hex: '#6b7280', opacity: 1 },
     gap: 12,
-    marginBottom: 4,
+    marginBottom: 3,
     rowWidth: 100,
     ...overrides,
   }
@@ -628,17 +642,24 @@ export const useCanvasDocStore = create<CanvasDocStore>((set, get) => ({
     }),
 
   updateBlock: (sectionId, columnId, blockId, patch) =>
-    set((s) => ({
-      doc: s.doc
+    set((s) => {
+      // IMPORTANT: Don't use pushHistory here to avoid creating history on every keystroke
+      // But DO create a new object reference to ensure React detects the change
+      const newDoc = s.doc
         ? mutateCol(s.doc, sectionId, columnId, (c) => ({
             ...c,
             blocks: c.blocks.map((b) =>
               b.id === blockId ? ({ ...b, ...patch } as CanvasBlock) : b
             ),
           }))
-        : s.doc,
-      isDirty: true,
-    })),
+        : s.doc
+
+      return {
+        ...s,
+        doc: newDoc,
+        isDirty: true,
+      }
+    }),
 
   moveBlock: (sectionId, columnId, blockId, direction) =>
     set((s) => {
